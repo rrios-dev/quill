@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "comment": "Chat abbreviations and their expansions, shared by the profiles (abbreviations: expand) and by the guards' normalisation (G6, G9, G13). Laughter and interjections (jaja, lol, omg, oye) are not abbreviations and are not listed.",
+  "languages": {
+    "es": {
+      "q": "que", "k": "que", "xq": "porque", "pq": "porque", "porq": "porque",
+      "tb": "también", "tmb": "también", "tbn": "también",
+      "x": "por", "xa": "para", "pa": "para", "d": "de", "dnd": "donde",
+      "bn": "bien", "msj": "mensaje", "xfa": "por favor", "porfa": "por favor", "pls": "por favor",
+      "tqm": "te quiero mucho", "bss": "besos", "bs": "besos", "salu2": "saludos",
+      "ntp": "no te preocupes", "nse": "no sé", "npi": "ni idea",
+      "mñn": "mañana", "mñna": "mañana", "hrs": "horas", "min": "minutos"
+    },
+    "en": {
+      "u": "you", "ur": "your", "r": "are", "b4": "before", "gr8": "great",
+      "thx": "thanks", "thnx": "thanks", "ty": "thank you", "pls": "please", "plz": "please",
+      "tmrw": "tomorrow", "tmr": "tomorrow", "2day": "today", "2nite": "tonight",
+      "btw": "by the way", "idk": "I don't know", "imo": "in my opinion", "fyi": "for your information",
+      "lmk": "let me know", "cu": "see you", "cya": "see you", "asap": "as soon as possible",
+      "msg": "message", "bc": "because", "cuz": "because", "w/": "with", "w/o": "without"
+    }
+  }
+}

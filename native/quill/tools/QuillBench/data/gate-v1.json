@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "gateVersion": 1,
+  "comment": "BENCH \u00a71.1. Thresholds and minimum repeats never change after the lock (a test compares every gate file). Allowed judges may only be added, never removed. A rubric bump is a new gate file.",
+  "minimumRepeats": 3,
+  "thresholds": {
+    "spellingOnly": {
+      "hardPassRate": 0.95,
+      "criticalPassEveryRepeat": true,
+      "meanReferenceSimilarity": 0.85,
+      "judgeRequired": false
+    },
+    "rewrite": {
+      "hardPassRate": 0.95,
+      "criticalPassEveryRepeat": true,
+      "judgeRequired": true,
+      "judgeMean": 4.0,
+      "judgeDimensionMinimum": 3.5,
+      "criticalMeaningAtMost": 2
+    }
+  },
+  "developmentPassRateToGate": 0.95,
+  "confirmationRuns": 2,
+  "maximumCountedRuns": 8,
+  "releaseRuns": 2,
+  "allowedJudges": [
+    "openrouter:anthropic/claude-sonnet-5.5",
+    "openrouter:openai/gpt-6.1-sol",
+    "openrouter:google/gemini-3.8-flash"
+  ],
+  "rubric": {
+    "version": 1,
+    "file": "judge/rubric-v1.md",
+    "sha256": "a5c54df4c392da96a44c0325101c3231cf9fd8911da05a6153383ccc39f6127b"
+  }
+}

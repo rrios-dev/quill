@@ -1,0 +1,13 @@
+# English values that match the Spanish reference on purpose, reviewed one by one
+# (the format and the reasoning are those of native/Scripts/untranslated-allowed.txt).
+#
+# 2026-10-04 — reviewed at P5-T2.
+en	profiles.example.input
+en	profiles.tone.cordial
+en	providers.context %@
+en	recipient.host %@
+en	recipient.named %@
+en	settings.apps
+en	system.missionControl
+en	system.spotlight
+en	settings.general

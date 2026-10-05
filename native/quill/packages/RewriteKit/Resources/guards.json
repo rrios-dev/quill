@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "comment": "Word lists of the output guards (ARCHITECTURE §4.6). Entries are compared after normalisation: lowercased, accents folded, punctuation removed, chat abbreviations expanded. Extending a list changes RewriteKit's evaluation version.",
+  "preambles": [
+    "aqui tienes el texto corregido", "aqui tienes el texto reescrito", "aqui tienes el texto",
+    "aqui tienes la version corregida", "aqui tienes la version mejorada", "aqui tienes una version",
+    "aqui esta el texto corregido", "aqui esta el texto reescrito", "aqui esta el texto",
+    "texto corregido", "texto reescrito", "texto revisado", "version corregida", "version revisada",
+    "version reescrita", "respuesta", "resultado", "correccion",
+    "here is the rewritten text", "here is the corrected text", "here is the revised text",
+    "here is the text", "here is the revised version", "here is the corrected version",
+    "heres the rewritten text", "heres the corrected text", "heres the revised version",
+    "rewritten text", "corrected text", "revised text", "revised version", "corrected version"
+  ],
+  "greetings": [
+    "hola", "buenas", "buenos dias", "buenas tardes", "buenas noches", "estimado", "estimada",
+    "estimados", "estimadas", "querido", "querida", "apreciado", "apreciada", "distinguido", "distinguida",
+    "hey", "hi", "hello", "dear", "good morning", "good afternoon", "good evening", "greetings"
+  ],
+  "signOffs": [
+    "saludos", "un saludo", "un saludo cordial", "saludos cordiales", "atentamente", "cordialmente",
+    "un abrazo", "abrazos", "besos", "un beso", "gracias", "muchas gracias", "gracias de antemano",
+    "quedo a la espera", "quedo a su disposicion", "quedo a tu disposicion", "hasta pronto",
+    "regards", "best regards", "kind regards", "warm regards", "best", "best wishes", "sincerely",
+    "yours sincerely", "yours faithfully", "cheers", "thanks", "thank you", "many thanks",
+    "thanks in advance", "talk soon", "see you soon"
+  ],
+  "refusals": [
+    "no puedo ayudarte con esa solicitud", "no puedo ayudarte con eso", "no puedo ayudar con eso",
+    "no puedo ayudar con esa solicitud", "no puedo reescribir este texto", "no puedo reescribir ese texto",
+    "no puedo cumplir con esa solicitud", "no puedo procesar este texto", "no puedo hacer eso",
+    "lo siento pero no puedo ayudar", "como modelo de lenguaje", "como asistente de ia", "como ia no puedo",
+    "i cant help with that", "i cannot help with that", "i cant help with this request",
+    "i cannot help with this request", "i cant assist with that", "i cannot assist with that",
+    "im unable to help", "i am unable to help", "im not able to help", "i cant rewrite this",
+    "i cannot rewrite this", "as an ai", "as a language model", "im sorry but i cant", "im sorry but i cannot"
+  ],
+  "commentary": [
+    "espero que te sirva", "espero que le sirva", "espero que esto te ayude", "espero que esto le ayude",
+    "espero haberte ayudado", "nota he corregido", "nota", "he corregido", "he cambiado", "he mantenido",
+    "si necesitas", "si quieres que", "si lo prefieres", "dime si", "avisame si",
+    "let me know if", "i hope this helps", "hope this helps", "note i fixed", "note", "i fixed",
+    "i have corrected", "ive corrected", "i corrected", "i changed", "ive changed", "if you need",
+    "if youd like", "feel free to"
+  ],
+  "interjections": [
+    "mira", "oye", "tio", "tia", "hey", "vale", "venga", "bueno", "pues", "jo", "ostras", "uf", "eh",
+    "lol", "omg", "wow", "oh", "um", "uh", "yeah", "dude"
+  ],
+  "stopwords": [
+    "aqui", "esta", "este", "esto", "estos", "esta", "estas", "tienes", "tiene", "la", "el", "los", "las",
+    "un", "una", "unos", "unas", "de", "del", "al", "y", "o", "que", "en", "con", "por", "para", "su", "sus",
+    "tu", "mi", "lo", "le", "se", "es", "son", "como", "mas", "muy", "ya", "sobre", "version", "texto",
+    "here", "is", "are", "the", "a", "an", "of", "to", "and", "or", "your", "my", "this", "that", "it",
+    "its", "with", "for", "on", "in", "text", "version"
+  ],
+  "months": [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "setiembre",
+    "octubre", "noviembre", "diciembre", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep",
+    "oct", "nov", "dic",
+    "january", "february", "march", "april", "june", "july", "august", "september", "october",
+    "november", "december", "jan", "apr", "aug", "sept", "dec"
+  ]
+}

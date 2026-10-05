@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>picker.start.words %lld</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@words@</string>
+		<key>words</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld palabra.</string>
+			<key>other</key>
+			<string>%lld palabras.</string>
+		</dict>
+	</dict>
+	<key>picker.start.wordsCost %lld %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$#@words@ · unos %2$@.</string>
+		<key>words</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld palabra</string>
+			<key>other</key>
+			<string>%lld palabras</string>
+		</dict>
+	</dict>
+	<key>profiles.guidance.truncated %lld</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Los modelos pequeños reciben solo %#@words@.</string>
+		<key>words</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>la primera palabra</string>
+			<key>other</key>
+			<string>las primeras %lld palabras</string>
+		</dict>
+	</dict>
+	<key>providers.test.ok %lld</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Conectado · %#@models@</string>
+		<key>models</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld modelo</string>
+			<key>other</key>
+			<string>%lld modelos</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "id": "spelling",
+      "names": {
+        "es": "Solo ortografía",
+        "en": "Spelling only"
+      },
+      "symbol": "textformat.abc",
+      "settings": {
+        "scope": "spellingOnly",
+        "register": "keep",
+        "tone": "keep",
+        "length": "keep",
+        "abbreviations": "expand",
+        "interjections": "keep",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links",
+          "lineBreaks"
+        ],
+        "lengthBand": {
+          "minimum": 0.8,
+          "maximum": 1.8
+        }
+      },
+      "examples": [
+        {
+          "input": "ola, mañana no voy a poder ir a la reunion xq tengo medico a las 10",
+          "output": "Hola, mañana no voy a poder ir a la reunión porque tengo médico a las 10."
+        },
+        {
+          "input": "thx for the update, i'll check it tmrw morning",
+          "output": "Thanks for the update, I'll check it tomorrow morning."
+        }
+      ],
+      "guidance": {
+        "en": "Fix missing h, agreement and opening ¿ ¡. Laughter and interjections such as lol or jaja are not abbreviations: keep them.",
+        "es": "Corrige las haches que faltan, la concordancia y los signos ¿ ¡ de apertura. Las risas y las interjecciones como lol o jaja no son abreviaturas: mantenlas."
+      }
+    },
+    {
+      "id": "work",
+      "names": {
+        "es": "Trabajo",
+        "en": "Work"
+      },
+      "symbol": "briefcase",
+      "settings": {
+        "scope": "rewrite",
+        "register": "keep",
+        "tone": "cordial",
+        "length": "keep",
+        "abbreviations": "expand",
+        "interjections": "remove",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links"
+        ],
+        "lengthBand": {
+          "minimum": 0.6,
+          "maximum": 1.6
+        }
+      },
+      "examples": [
+        {
+          "input": "el cliente dice q no le llega la factura, lo miras tu o lo miro yo? es urgente eh",
+          "output": "El cliente dice que no le llega la factura. ¿Lo revisas tú o lo reviso yo? Es urgente."
+        },
+        {
+          "input": "so the deploy broke again lol, can u take a look when ur free? no rush",
+          "output": "The deploy broke again. Can you take a look when you're free? No rush."
+        }
+      ],
+      "guidance": {
+        "en": "Split run-on sentences. Remove vulgarities and filler. Prefer professional vocabulary, but keep technical terms as written (backend, sprint, commit). Add a missing accent or capital to a proper name (maria → María). If the text is already clear and professional, return it unchanged. Never add apologies, promises or facts.",
+        "es": "Divide las frases demasiado largas. Quita las muletillas y las palabras malsonantes. Usa vocabulario profesional, pero deja los términos técnicos como están (backend, sprint, commit). Pon la tilde o la mayúscula que le falte a un nombre propio (maria → María). Si el texto ya es claro y profesional, devuélvelo igual. Nunca añadas disculpas, promesas ni datos."
+      }
+    },
+    {
+      "id": "formal",
+      "names": {
+        "es": "Formal",
+        "en": "Formal"
+      },
+      "symbol": "building.columns",
+      "settings": {
+        "scope": "rewrite",
+        "register": "formal",
+        "tone": "neutral",
+        "length": "keep",
+        "abbreviations": "expand",
+        "interjections": "remove",
+        "emoji": "remove",
+        "preserve": [
+          "names",
+          "numbers",
+          "links",
+          "lineBreaks"
+        ],
+        "lengthBand": {
+          "minimum": 0.7,
+          "maximum": 1.8
+        }
+      },
+      "examples": [
+        {
+          "input": "te mando el presupuesto revisado, si estas de acuerdo me lo firmas y me lo devuelves",
+          "output": "Le envío el presupuesto revisado. Si está de acuerdo, fírmelo y devuélvamelo."
+        },
+        {
+          "input": "we got your email, we'll look into the invoice issue soon",
+          "output": "We have received your email. We will look into the invoice issue shortly."
+        }
+      ],
+      "guidance": {
+        "en": "Use formal wording with no contractions, and replace slang and colloquial phrases with formal equivalents. Vague stays vague: turn \"luego\" or \"pronto\" into a formal vague expression, never a date. Keep who holds each action or obligation; no passive voice that hides the actor. Keep the same paragraphs: split sentences, never add or remove line breaks. Add a missing accent or capital to a proper name (maria → María). Never add legal formulas, amounts or obligations.",
+        "es": "Trata de usted a todos: el tú pasa a usted y el vosotros (os, vuestro) a ustedes, también en los verbos. Cambia lo coloquial (ni de broma, currar) por su equivalente formal. Lo vago sigue siendo vago: \"luego\" o \"pronto\" pasan a una expresión formal igual de vaga, nunca a una fecha. Mantén quién tiene cada acción u obligación; sin pasivas que oculten a quien actúa. Conserva los párrafos: divide frases, sin añadir ni quitar saltos de línea. Pon la tilde o mayúscula que le falte a un nombre propio (maria → María). Nunca añadas fórmulas legales, importes ni obligaciones."
+      }
+    },
+    {
+      "id": "friends",
+      "names": {
+        "es": "Amigos",
+        "en": "Friends"
+      },
+      "symbol": "face.smiling",
+      "settings": {
+        "scope": "spellingOnly",
+        "register": "keep",
+        "tone": "keep",
+        "length": "keep",
+        "abbreviations": "keep",
+        "interjections": "keep",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links",
+          "lineBreaks"
+        ],
+        "lengthBand": {
+          "minimum": 0.8,
+          "maximum": 1.4
+        }
+      },
+      "examples": [
+        {
+          "input": "q tal el finde?? yo e estado en la playa con mi hermana 🌊 jajaja",
+          "output": "¿¿q tal el finde?? Yo he estado en la playa con mi hermana 🌊 jajaja"
+        },
+        {
+          "input": "omg cant believe u won!! drinks on u tonight 🍻",
+          "output": "omg can't believe u won!! Drinks on u tonight 🍻"
+        }
+      ],
+      "guidance": {
+        "en": "Add an opening ¿ or ¡ to match each closing mark. Capitalise sentence starts, except a leading chat abbreviation or laughter. Keep slang, laughter and expressive punctuation (!!, …). Do not restructure.",
+        "es": "Añade el ¿ o ¡ de apertura que corresponda a cada signo de cierre. Pon mayúscula al empezar frase, salvo si empieza con una abreviatura de chat o una risa. Mantén la jerga, las risas y la puntuación expresiva (!!, …). No reestructures."
+      }
+    },
+    {
+      "id": "dictation",
+      "names": {
+        "es": "Limpiar dictado",
+        "en": "Clean up dictation"
+      },
+      "symbol": "mic",
+      "settings": {
+        "scope": "spellingOnly",
+        "register": "keep",
+        "tone": "keep",
+        "length": "keep",
+        "abbreviations": "expand",
+        "interjections": "remove",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links",
+          "lineBreaks"
+        ],
+        "lengthBand": {
+          "minimum": 0.5,
+          "maximum": 1.1
+        }
+      },
+      "examples": [
+        {
+          "input": "eh mañana paso por la oficina a las a las nueve y eh recojo las llaves",
+          "output": "Mañana paso por la oficina a las nueve y recojo las llaves."
+        },
+        {
+          "input": "um I was thinking we could we could move the call to uh Thursday",
+          "output": "I was thinking we could move the call to Thursday."
+        }
+      ],
+      "guidance": {
+        "en": "The text was dictated. Remove filler sounds and words (um, uh, like, you know, so at the start), repeated words and false starts, keeping the last version of each sentence. Add punctuation and capitals. Keep the words, their order and the tone; do not summarise.",
+        "es": "El texto está dictado. Quita las muletillas (eh, em, este, o sea, bueno al empezar), las palabras repetidas y los arranques en falso, y quédate con la última versión de cada frase. Pon la puntuación y las mayúsculas. Mantén las palabras, su orden y el tono; no resumas."
+      }
+    },
+    {
+      "id": "concise",
+      "names": {
+        "es": "Conciso",
+        "en": "Concise"
+      },
+      "symbol": "scissors",
+      "settings": {
+        "scope": "rewrite",
+        "register": "keep",
+        "tone": "keep",
+        "length": "shorter",
+        "abbreviations": "expand",
+        "interjections": "remove",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links"
+        ],
+        "lengthBand": {
+          "minimum": 0.3,
+          "maximum": 1.05
+        }
+      },
+      "examples": [
+        {
+          "input": "te escribo para comentarte que al final, después de darle muchas vueltas, hemos decidido que la reunión del equipo la vamos a mover al viernes por la tarde",
+          "output": "Hemos decidido mover la reunión del equipo al viernes por la tarde."
+        },
+        {
+          "input": "I just wanted to quickly let you know that, as it turns out, the shipment is probably going to arrive a bit later than we had originally expected",
+          "output": "The shipment will probably arrive later than we expected."
+        }
+      ],
+      "guidance": {
+        "en": "Cut what is not needed: repetition, roundabout phrasing, filler and padding. Keep every fact, request and nuance, and the structure of the text. If the text is already short and has no padding, return it exactly as it is, without rephrasing it. Never add anything.",
+        "es": "Quita lo que sobra: repeticiones, rodeos, muletillas y relleno. Conserva cada dato, cada petición y cada matiz, y la estructura del texto. Si el texto ya es breve y no tiene relleno, devuélvelo exactamente igual, sin reformularlo. Nunca añadas nada."
+      }
+    },
+    {
+      "id": "synthesis",
+      "names": {
+        "es": "Sintetizar",
+        "en": "Synthesize"
+      },
+      "symbol": "list.bullet.rectangle",
+      "settings": {
+        "scope": "rewrite",
+        "register": "keep",
+        "tone": "direct",
+        "length": "shorter",
+        "abbreviations": "expand",
+        "interjections": "remove",
+        "emoji": "remove",
+        "preserve": [
+          "names",
+          "numbers",
+          "links"
+        ],
+        "lengthBand": {
+          "minimum": 0.1,
+          "maximum": 1.05
+        }
+      },
+      "examples": [
+        {
+          "input": "bueno os cuento lo que se habló ayer en la reunión con el proveedor porque fue un poco caótico, al final se acordó que ellos nos mandan las muestras el día 12 y nosotros tenemos que confirmarles el pedido antes del 20, el precio se queda como estaba aunque querían subirlo, y queda pendiente lo del transporte que nadie supo decir quién lo paga",
+          "output": "Reunión con el proveedor:\n- Ellos nos envían las muestras el día 12.\n- Nosotros confirmamos el pedido antes del 20.\n- El precio se mantiene, aunque querían subirlo.\n- Pendiente: quién paga el transporte."
+        },
+        {
+          "input": "so after a long back and forth with the landlord, where honestly nobody was very clear, what we ended up agreeing is that he fixes the heating by the 3rd and we pay the March rent once it's done, and the broken window is still an open question",
+          "output": "Agreement with the landlord:\n- He fixes the heating by the 3rd.\n- We pay the March rent once it is done.\n- Open: the broken window."
+        }
+      ],
+      "guidance": {
+        "en": "Turn a long, dense or messy text into a short, practical one: the gist first, then the decisions, requests (who does what), dates and open questions, in short sentences or a list. Keep every name, number, date and link, including those in passing, written as in the original (six stays six). Drop repetition, detours and digressions. Start with the content, without a generic heading such as \"Summary:\". If it is already short and orderly, return it unchanged. Do not interpret or add anything.",
+        "es": "Convierte un texto largo, denso o desordenado en uno breve y práctico: primero lo esencial; después las decisiones, las peticiones (quién hace qué), las fechas y lo pendiente, en frases cortas o en una lista. Conserva todos los nombres, números, fechas y enlaces, también los de pasada, escritos como en el original (seis sigue siendo seis). Quita repeticiones, rodeos y digresiones. Empieza por el contenido, sin títulos genéricos como «Resumen:». Si ya es breve y ordenado, devuélvelo igual. No interpretes ni añadas nada."
+      }
+    }
+  ]
+}

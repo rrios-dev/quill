@@ -1,0 +1,836 @@
+{
+  "entries" : [
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:44:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:44:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "friends",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:44:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9583333333333334,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.916666666666667,
+          "meaning" : 4.708333333333333,
+          "nothingAdded" : 4.833333333333333,
+          "profileMatch" : 4.75
+        },
+        "judgeMean" : 4.802083333333333,
+        "meanSimilarity" : 0.8716040816185128,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "work",
+      "promptHash" : "682070bbcb428bf906e6a576e7b8f47a1d120bc98a654250df35545542671f0d",
+      "reasons" : [
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:44:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9166666666666666,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.916666666666667,
+          "nothingAdded" : 4.875,
+          "profileMatch" : 4.791666666666667
+        },
+        "judgeMean" : 4.885416666666667,
+        "meanSimilarity" : 0.873582033592429,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "formal",
+      "promptHash" : "275e5857bcea6ad6ada13eaa39ef0ffdfd80a5d031d3a1bbbf17e6546d828a0f",
+      "reasons" : [
+        "hard checks 92 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:45:58Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 0.9970389017676036,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:51:27Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-2",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:51:27Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-2",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "friends",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T10:52:59Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-2-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 0.9166666666666666,
+        "meanSimilarity" : 0.9968638317395925,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+        "hard checks 92 %"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T11:12:30Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-5.4-mini",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1-mini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9583333333333334,
+        "meanSimilarity" : 0.9930707282913166,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-5.4-mini",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T11:12:30Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-5.4-mini",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-1-mini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.75,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.416666666666667,
+          "nothingAdded" : 4.958333333333333,
+          "profileMatch" : 4.083333333333333
+        },
+        "judgeMean" : 4.604166666666667,
+        "meanSimilarity" : 0.8324420493092619,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-5.4-mini",
+      "profile" : "work",
+      "promptHash" : "682070bbcb428bf906e6a576e7b8f47a1d120bc98a654250df35545542671f0d",
+      "reasons" : [
+        "hard checks 75 %",
+        "a critical case failed a repeat",
+        "a critical case's meaning scored ≤ 2"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T11:57:18Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-3-gemini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.916666666666667,
+          "meaning" : 4.708333333333333,
+          "nothingAdded" : 4.875,
+          "profileMatch" : 4.791666666666667
+        },
+        "judgeMean" : 4.822916666666667,
+        "meanSimilarity" : 0.8942810184586502,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T11:57:18Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-3-gemini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.875,
+          "meaning" : 4.875,
+          "nothingAdded" : 4.958333333333333,
+          "profileMatch" : 4.458333333333333
+        },
+        "judgeMean" : 4.791666666666667,
+        "meanSimilarity" : 0.8671968437904601,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : false,
+      "date" : "2026-10-04T12:02:57Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-3-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+        "judge: unusable(\"notes\")"
+      ],
+      "release" : false,
+      "verdict" : "void"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:02:57Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-3-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.833333333333333,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.583333333333333
+        },
+        "judgeMean" : 4.854166666666667,
+        "meanSimilarity" : 0.8400578380116964,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : false,
+      "date" : "2026-10-04T12:04:49Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-5.4-mini",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-3-mini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "model" : "openrouter:openai\/gpt-5.4-mini",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+        "judge: unusable(\"notes\")"
+      ],
+      "release" : false,
+      "verdict" : "void"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:15:09Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-4-gemini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.875,
+          "meaning" : 4.625,
+          "nothingAdded" : 4.833333333333333,
+          "profileMatch" : 4.791666666666667
+        },
+        "judgeMean" : 4.78125,
+        "meanSimilarity" : 0.8951240714398611,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:15:09Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-4-gemini",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.916666666666667,
+          "meaning" : 4.916666666666667,
+          "nothingAdded" : 4.916666666666667,
+          "profileMatch" : 4.458333333333333
+        },
+        "judgeMean" : 4.802083333333333,
+        "meanSimilarity" : 0.8570140156601442,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:18:05Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "gate-4-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.541666666666667
+        },
+        "judgeMean" : 4.885416666666667,
+        "meanSimilarity" : 0.8425400904648909,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:24:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate-5-openai",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.916666666666667
+        },
+        "judgeMean" : 4.979166666666667,
+        "meanSimilarity" : 0.9134026168902404,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:24:19Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-5.4-mini",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate-5-openai",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.7916666666666666,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.708333333333333,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.541666666666667
+        },
+        "judgeMean" : 4.802083333333333,
+        "meanSimilarity" : 0.8648179328335998,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-5.4-mini",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+        "hard checks 79 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T12:27:47Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 1,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate-6-luna",
+      "lockHash" : "4f97d27eda421d21bdac35c81eede0b7e16e5ced4f02e74338ab6e3f24ffa557",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.916666666666667
+        },
+        "judgeMean" : 4.979166666666667,
+        "meanSimilarity" : 0.9264997705709727,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:25:26Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-1-dictation-gemini-3.8-flash",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 0.9956140350877193,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:26:34Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-1-dictation-gpt-6-luna",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 0.9896616541353384,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:31:07Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-1-concise-gemini-3.8-flash",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.583333333333333,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.291666666666667
+        },
+        "judgeMean" : 4.708333333333333,
+        "meanSimilarity" : 0.868297907720164,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:33:26Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-1-concise-gpt-6-luna",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 0.9583333333333334,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.666666666666667,
+          "nothingAdded" : 4.666666666666667,
+          "profileMatch" : 4.083333333333333
+        },
+        "judgeMean" : 4.59375,
+        "meanSimilarity" : 0.7163293568521993,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:37:08Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-1-synthesis-gemini-3.8-flash",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 0.875,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.75,
+          "nothingAdded" : 4.666666666666667,
+          "profileMatch" : 4.625
+        },
+        "judgeMean" : 4.75,
+        "meanSimilarity" : 0.7700756286948831,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "synthesis",
+      "promptHash" : "18987474e49f75824ee5591bdbe538f60ecf4e0d97496fd4d8d349403c6a3a10",
+      "reasons" : [
+        "hard checks 88 %"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:39:32Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-2-dictation-gemini-3.8-flash",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 0.9956140350877192,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:40:43Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-2-dictation-gpt-6-luna",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9166666666666666,
+        "meanSimilarity" : 0.991303690260133,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+        "hard checks 92 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:45:02Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-2-concise-gemini-3.8-flash",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.583333333333333,
+          "nothingAdded" : 4.958333333333333,
+          "profileMatch" : 4.25
+        },
+        "judgeMean" : 4.6875,
+        "meanSimilarity" : 0.8579206542082259,
+        "runs" : 24
+      },
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-10-04T22:47:30Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "openai\/gpt-6-luna",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "new-gate-2-concise-gpt-6-luna",
+      "lockHash" : "db9358fa45324f66d56c08cc4d218dac4ebab95a26d562b9c5d08c76c251da1b",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 0.9583333333333334,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 4.583333333333333,
+          "nothingAdded" : 4.625,
+          "profileMatch" : 4.041666666666667
+        },
+        "judgeMean" : 4.5625,
+        "meanSimilarity" : 0.7321518494464742,
+        "runs" : 24
+      },
+      "model" : "openrouter:openai\/gpt-6-luna",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    }
+  ]
+}

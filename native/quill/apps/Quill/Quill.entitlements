@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Quill runs with the Hardened Runtime and WITHOUT the App Sandbox
+	  (README D-02): reading the selection in other apps and pasting the result
+	  needs the Accessibility permission, which the sandbox forbids.
+
+	  No Hardened Runtime exceptions either (ARCHITECTURE §6): no microphone, no
+	  JIT, no library-validation exception. Each one relaxes a real protection,
+	  so adding one needs a reason recorded here.
+	-->
+</dict>
+</plist>

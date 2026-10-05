@@ -1,0 +1,299 @@
+{
+  "entries" : [
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@26",
+      "promptHash" : "7e1f866d4331c560ba61cfe645e505dc1e3049e72643e3bc78828f8b1c0e1128",
+      "verdict" : "not ready (development 27 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@26",
+      "promptHash" : "95d055fe304f734e886caa856c09e6a3481d8980721f570c476ab86602222b55",
+      "verdict" : "not ready (development 54 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@26",
+      "promptHash" : "eeec10e8a2966a172f011384da30a1e2a7230a3d9ffe8514b3344299b6aaf8d6",
+      "verdict" : "not ready (development 41 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@26",
+      "promptHash" : "f92dc6c4c6459c4ae92f49170a6430054de4fc37624d4c9b9a2832e931b3d2c1",
+      "verdict" : "not ready (development 74 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "0ddcea79240979cf150a6779c2427035adc46bd908b7dc231163829a6f20ca4e",
+      "verdict" : "not ready (development 43 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "21095ad287b03fff38cca0e3dcfa86d786afd3614b06e61e859dd047821d5743",
+      "verdict" : "not ready (development 29 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "23781f985e425ee8f74a25d7312001621d42048c84feb4bb6f651d273f32e7f6",
+      "verdict" : "not ready (development 54 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "33f008efa7a086235c25f9e7336d78f53957734e6ff27aaccf4389dd333f09ab",
+      "verdict" : "not ready (development 60 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "7d24f51a3acbf00092a1a41f51c0088941e25863f75111969b431a5226f2bedc",
+      "verdict" : "not ready (development 50 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "7e1f866d4331c560ba61cfe645e505dc1e3049e72643e3bc78828f8b1c0e1128",
+      "verdict" : "not ready (development 16 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "95d055fe304f734e886caa856c09e6a3481d8980721f570c476ab86602222b55",
+      "verdict" : "not ready (development 39 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "eeec10e8a2966a172f011384da30a1e2a7230a3d9ffe8514b3344299b6aaf8d6",
+      "verdict" : "not ready (development 43 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "apple/on-device@27",
+      "promptHash" : "f92dc6c4c6459c4ae92f49170a6430054de4fc37624d4c9b9a2832e931b3d2c1",
+      "verdict" : "not ready (development 39 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "18987474e49f75824ee5591bdbe538f60ecf4e0d97496fd4d8d349403c6a3a10",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "275e5857bcea6ad6ada13eaa39ef0ffdfd80a5d031d3a1bbbf17e6546d828a0f",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "3e9864a4517a3c198498e3a76fb282e778911e632304a9c1f0eade7f1e7b5bd5",
+      "verdict" : "not ready (development 85 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "682070bbcb428bf906e6a576e7b8f47a1d120bc98a654250df35545542671f0d",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not evaluated",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "88929fe66850f1579e40e78c229ab7ddc64f7a0f5242960298abdf75b01e8461",
+      "verdict" : "not evaluated (no gate run)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "google/gemini-3.8-flash",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "verdict" : "not ready (development 81 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "275e5857bcea6ad6ada13eaa39ef0ffdfd80a5d031d3a1bbbf17e6546d828a0f",
+      "verdict" : "not ready (development 83 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "682070bbcb428bf906e6a576e7b8f47a1d120bc98a654250df35545542671f0d",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-5.4-mini",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "verdict" : "not ready (development 81 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "18987474e49f75824ee5591bdbe538f60ecf4e0d97496fd4d8d349403c6a3a10",
+      "verdict" : "not ready (development 87 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "275e5857bcea6ad6ada13eaa39ef0ffdfd80a5d031d3a1bbbf17e6546d828a0f",
+      "verdict" : "not ready (development 91 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "3e9864a4517a3c198498e3a76fb282e778911e632304a9c1f0eade7f1e7b5bd5",
+      "verdict" : "not ready (development 81 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "682070bbcb428bf906e6a576e7b8f47a1d120bc98a654250df35545542671f0d",
+      "verdict" : "not ready (development 91 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "verdict" : "not ready (development 87 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "88929fe66850f1579e40e78c229ab7ddc64f7a0f5242960298abdf75b01e8461",
+      "verdict" : "not ready (development 72 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "bb17ff460264f4230f7631117a8372ab4af4e91b0d69bd9fc72b7b1a652c255d",
+      "verdict" : "not ready (development 91 %)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "openai/gpt-6-luna",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "verdict" : "not ready"
+    }
+  ],
+  "schemaVersion" : 1
+}

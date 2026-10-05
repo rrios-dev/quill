@@ -1,0 +1,19 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-04 02:43:17.277 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] capture-to-picker
+2026-10-04 02:43:17.351 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] capture-to-picker
+2026-10-04 02:43:17.351 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] first-token
+2026-10-04 02:43:18.303 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] first-token
+2026-10-04 02:43:19.401 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] replace
+2026-10-04 02:43:19.750 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] replace
+2026-10-04 02:43:59.701 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] capture-to-picker
+2026-10-04 02:43:59.730 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] capture-to-picker
+2026-10-04 02:43:59.730 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] first-token
+2026-10-04 02:44:00.946 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] first-token
+2026-10-04 02:44:01.829 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] replace
+2026-10-04 02:44:02.168 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] replace
+2026-10-04 02:44:42.840 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] capture-to-picker
+2026-10-04 02:44:42.868 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] capture-to-picker
+2026-10-04 02:44:42.868 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] first-token
+2026-10-04 02:44:43.904 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] first-token
+2026-10-04 02:44:44.959 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process, begin] replace
+2026-10-04 02:44:45.291 Sp Quill[91779:3d786a2] [dev.rrios.quill:performance] [spid excl, process,   end] replace

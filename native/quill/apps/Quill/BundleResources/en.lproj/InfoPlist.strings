@@ -1,0 +1,2 @@
+/* Info.plist strings shown by macOS. */
+"NSLocalNetworkUsageDescription" = "Quill connects to a model server on your network only when you add one in Settings.";
