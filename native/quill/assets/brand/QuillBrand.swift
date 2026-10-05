@@ -62,16 +62,17 @@ enum Geometry {
     /// (stem x, knob centre y, stem top, stem bottom): top left and bottom right, as on
     /// every text selection.
     static let handles: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [(196, 520, 520, 700), (828, 724, 544, 724)]
-    static let quill = CGAffineTransform(translationX: 540, y: 478).rotated(by: 0.70)
+    static let quill = CGAffineTransform(translationX: 506, y: 468).rotated(by: 0.70)
         .scaledBy(x: 0.93, y: 0.93).translatedBy(x: -512, y: -512)
 
     static var vane: CGPath {
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: 512, y: 150))
-        path.addCurve(to: CGPoint(x: 626, y: 470), control1: CGPoint(x: 590, y: 230), control2: CGPoint(x: 640, y: 350))
-        path.addCurve(to: CGPoint(x: 520, y: 742), control1: CGPoint(x: 612, y: 590), control2: CGPoint(x: 560, y: 690))
-        path.addCurve(to: CGPoint(x: 424, y: 520), control1: CGPoint(x: 470, y: 690), control2: CGPoint(x: 420, y: 610))
-        path.addCurve(to: CGPoint(x: 512, y: 150), control1: CGPoint(x: 428, y: 380), control2: CGPoint(x: 462, y: 230))
+        path.move(to: CGPoint(x: 512, y: 128))
+        path.addCurve(to: CGPoint(x: 612, y: 450), control1: CGPoint(x: 566, y: 200), control2: CGPoint(x: 616, y: 320))
+        path.addCurve(to: CGPoint(x: 516, y: 748), control1: CGPoint(x: 608, y: 590), control2: CGPoint(x: 566, y: 690))
+        path.addLine(to: CGPoint(x: 508, y: 748))
+        path.addCurve(to: CGPoint(x: 412, y: 450), control1: CGPoint(x: 458, y: 690), control2: CGPoint(x: 416, y: 590))
+        path.addCurve(to: CGPoint(x: 512, y: 128), control1: CGPoint(x: 408, y: 320), control2: CGPoint(x: 458, y: 200))
         path.closeSubpath()
         var t = quill
         return path.copy(using: &t)!
@@ -80,7 +81,7 @@ enum Geometry {
     /// Thin wedges cut from the vane's edge, angled like the barbs: what makes it a feather.
     static var notches: CGPath {
         let path = CGMutablePath()
-        for (x, y, inward) in [(640.0, 400.0, -1.0), (620.0, 585.0, -1.0), (418.0, 520.0, 1.0)] {
+        for (x, y, inward) in [(606.0, 400.0, -0.62), (420.0, 560.0, 0.62)] {
             path.move(to: CGPoint(x: x, y: y - 6))
             path.addLine(to: CGPoint(x: x + inward * 74, y: y + 20))
             path.addLine(to: CGPoint(x: x, y: y + 16))
@@ -93,7 +94,7 @@ enum Geometry {
     /// The shaft runs past the vane into a sharp writing point: the quill writes.
     static var shaft: CGPath {
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: 506, y: 190)); path.addLine(to: CGPoint(x: 518, y: 190))
+        path.move(to: CGPoint(x: 511, y: 170)); path.addLine(to: CGPoint(x: 513, y: 170))
         path.addLine(to: CGPoint(x: 524, y: 760)); path.addLine(to: CGPoint(x: 512, y: 880))
         path.addLine(to: CGPoint(x: 500, y: 760)); path.closeSubpath()
         var t = quill
@@ -190,6 +191,9 @@ func drawSelection(_ ctx: CGContext, style: Style, saturated: Bool = false, body
 
 func drawQuill(_ ctx: CGContext, style: Style) {
     let vane = Geometry.vane
+    // The vane's tip is far sharper than the default miter limit (10): without this, every
+    // stroke along its edge is bevelled there and the tip reads as cut off.
+    ctx.setMiterLimit(60)
     ctx.saveGState(); ctx.setShadow(offset: CGSize(width: 0, height: 28), blur: 50, color: rgba(0x070630, style.shadowAlpha))
     ctx.addPath(vane); ctx.setFillColor(rgba(0xFFFFFF, 0.1)); ctx.fillPath(); ctx.restoreGState()
 
@@ -250,6 +254,7 @@ func drawMark(_ ctx: CGContext) {
 /// The mark in one ink: the selection, knocked out where the quill crosses it, and the
 /// quill, its shaft a groove down the vane and ink past it.
 func drawMono(_ ctx: CGContext, color: CGColor) {
+    ctx.setMiterLimit(60)  // the vane's sharp tip, as in drawQuill
     ctx.translateBy(x: 0, y: 6)
     let all = CGRect(x: -512, y: -512, width: 2048, height: 2048)
     ctx.beginTransparencyLayer(auxiliaryInfo: nil)

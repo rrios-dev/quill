@@ -23,13 +23,13 @@ SELECTION_LIGHT, SELECTION, HANDLE = "#6FA2FF", "#2F6BFF", "#3D78FF"
 QUILL_INK = "#3B3FC9"
 
 # The quill's placement, exactly QuillBrand.swift's `Geometry.quill`:
-# translate(540, 478) · rotate(0.70 rad) · scale(0.93) · translate(-512, -512).
-QUILL = "translate(540 478) rotate(40.107) scale(0.93) translate(-512 -512)"
-VANE = ("M512 150 C590 230 640 350 626 470 C612 590 560 690 520 742 "
-        "C470 690 420 610 424 520 C428 380 462 230 512 150 Z")
+# translate(506, 468) · rotate(0.70 rad) · scale(0.93) · translate(-512, -512).
+QUILL = "translate(506 468) rotate(40.107) scale(0.93) translate(-512 -512)"
+VANE = ("M512 128 C566 200 616 320 612 450 C608 590 566 690 516 748 L508 748 "
+        "C458 690 416 590 412 450 C408 320 458 200 512 128 Z")
 NOTCHES = "".join(f"M{x} {y - 6} L{x + d * 74} {y + 20} L{x} {y + 16} Z"
-                  for x, y, d in [(640, 400, -1), (620, 585, -1), (418, 520, 1)])
-SHAFT = "M506 190 L518 190 L524 760 L512 880 L500 760 Z"
+                  for x, y, d in [(606, 400, -0.62), (420, 560, 0.62)])
+SHAFT = "M511 170 L513 170 L524 760 L512 880 L500 760 Z"
 SHAFT_LINE = "M512 200 L512 760"
 BAND = dict(x=196, y=556, w=632, h=132, r=26)
 HANDLES = [(196, 520, 520, 700), (828, 724, 544, 724)]  # stem x, knob y, stem top, stem bottom
@@ -37,7 +37,7 @@ HANDLES = [(196, 520, 520, 700), (828, 724, 544, 724)]  # stem x, knob y, stem t
 
 def svg(width, height, body, title, defs=""):
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width:g}" height="{height:g}" '
-            f'viewBox="0 0 {width:g} {height:g}" role="img"><title>{title}</title>'
+            f'viewBox="0 0 {width:g} {height:g}" stroke-miterlimit="60" role="img"><title>{title}</title>'
             f'<defs>{defs}</defs>{body}</svg>\n')
 
 

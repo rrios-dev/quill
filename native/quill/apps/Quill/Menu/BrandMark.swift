@@ -21,17 +21,18 @@ enum BrandMark {
         return image
     }
 
-    private static let quill = CGAffineTransform(translationX: 540, y: 478).rotated(by: 0.70)
+    private static let quill = CGAffineTransform(translationX: 506, y: 468).rotated(by: 0.70)
         .scaledBy(x: 0.93, y: 0.93).translatedBy(x: -512, y: -512)
 
     private static func draw(in context: CGContext) {
         var transform = quill
         let vane = CGMutablePath()
-        vane.move(to: CGPoint(x: 512, y: 150))
-        vane.addCurve(to: CGPoint(x: 626, y: 470), control1: CGPoint(x: 590, y: 230), control2: CGPoint(x: 640, y: 350))
-        vane.addCurve(to: CGPoint(x: 520, y: 742), control1: CGPoint(x: 612, y: 590), control2: CGPoint(x: 560, y: 690))
-        vane.addCurve(to: CGPoint(x: 424, y: 520), control1: CGPoint(x: 470, y: 690), control2: CGPoint(x: 420, y: 610))
-        vane.addCurve(to: CGPoint(x: 512, y: 150), control1: CGPoint(x: 428, y: 380), control2: CGPoint(x: 462, y: 230))
+        vane.move(to: CGPoint(x: 512, y: 128))
+        vane.addCurve(to: CGPoint(x: 612, y: 450), control1: CGPoint(x: 566, y: 200), control2: CGPoint(x: 616, y: 320))
+        vane.addCurve(to: CGPoint(x: 516, y: 748), control1: CGPoint(x: 608, y: 590), control2: CGPoint(x: 566, y: 690))
+        vane.addLine(to: CGPoint(x: 508, y: 748))
+        vane.addCurve(to: CGPoint(x: 412, y: 450), control1: CGPoint(x: 458, y: 690), control2: CGPoint(x: 416, y: 590))
+        vane.addCurve(to: CGPoint(x: 512, y: 128), control1: CGPoint(x: 408, y: 320), control2: CGPoint(x: 458, y: 200))
         vane.closeSubpath()
         let shaft = CGMutablePath()
         shaft.move(to: CGPoint(x: 500, y: 700)); shaft.addLine(to: CGPoint(x: 526, y: 700))
@@ -39,6 +40,7 @@ enum BrandMark {
         guard let quillVane = vane.copy(using: &transform), let quillTip = shaft.copy(using: &transform) else { return }
         let band = CGPath(roundedRect: CGRect(x: 196, y: 556, width: 632, height: 132), cornerWidth: 26, cornerHeight: 26, transform: nil)
 
+        context.setMiterLimit(60)  // the vane's sharp tip, as in the brand's drawing
         context.beginTransparencyLayer(auxiliaryInfo: nil)
         context.setFillColor(NSColor.black.cgColor)
         context.addPath(band); context.fillPath()
