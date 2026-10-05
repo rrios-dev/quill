@@ -62,14 +62,14 @@ struct CopySelectionTests {
     func clearThenWrite() async {
         let pasteboard = SlowHostPasteboard()
         let outcome = await operations(pasteboard, copies: "selected words", afterReads: 3)
-            .copySelection(phase: .milliseconds(200), clock: ContinuousClock())
+            .copySelection(phase: .milliseconds(200), clock: ManualClock())
         #expect(outcome == .copied("selected words"))
     }
 
     @Test("a host that does not react to ⌘C yields no change")
     func noReaction() async {
         let outcome = await operations(SlowHostPasteboard(), copies: nil)
-            .copySelection(phase: .milliseconds(40), clock: ContinuousClock())
+            .copySelection(phase: .milliseconds(40), clock: ManualClock())
         #expect(outcome == .noChange)
     }
 
@@ -78,7 +78,7 @@ struct CopySelectionTests {
         let pasteboard = SlowHostPasteboard()
         pasteboard.access = .ask
         let outcome = await operations(pasteboard, copies: "selected words")
-            .copySelection(phase: .milliseconds(40), clock: ContinuousClock())
+            .copySelection(phase: .milliseconds(40), clock: ManualClock())
         #expect(outcome == .readingNotAllowed)
         #expect(pasteboard.changeCount() == 1)
     }
