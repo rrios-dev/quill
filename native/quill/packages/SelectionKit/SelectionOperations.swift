@@ -59,11 +59,21 @@ public struct SelectionOperations: Sendable {
 
     /// The pid of the application that holds keyboard focus (`AXFocusedApplication`) —
     /// the coarse focus-return signal `AppCore.Paster.waitForKeyboardFocus` checks.
+    ///
+    /// When the system-wide element cannot answer at all — measured on 2026-10-05 with
+    /// InputLeap running: every system-wide query fails with `kAXErrorCannotComplete` —
+    /// the frontmost application stands in for it: the same app-level signal, from
+    /// NSWorkspace instead of accessibility. It cannot also require a focused element:
+    /// Microsoft Teams exposes none at all (its AXFocusedUIElement and AXFocusedWindow
+    /// answer `kAXErrorNoValue`), which is why its selection is read with ⌘C. Without
+    /// this, every replace there only copied the result.
     public func focusedApplicationPID() -> pid_t? {
-        guard case .success(let application) = accessibility.element(
-            "AXFocusedApplication", of: accessibility.systemWide()
-        ) else { return nil }
-        return accessibility.pid(of: application)
+        switch accessibility.element("AXFocusedApplication", of: accessibility.systemWide()) {
+        case .success(let application):
+            return accessibility.pid(of: application)
+        case .failure:
+            return accessibility.frontmostApplicationPID()
+        }
     }
 
     // MARK: Lazy trees

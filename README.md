@@ -8,7 +8,7 @@
 
 ---
 
-Select text anywhere — a Teams message, an e-mail, a form in the browser — and press
+Select text where you write — a Teams message, an e-mail, a note — and press
 **⌃⌥R**. Quill shows the rewrite next to the selection; press Return and it replaces the
 text where you were typing. Or type what you want ("shorter", "in English", "warmer") and
 press Return.

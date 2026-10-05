@@ -48,7 +48,7 @@ owner session); **n/a** (with a reason).
 | S1-12 | Safari | Sign-in form password field | pending | — | OS2. Must be refused. |
 | S1-13 | Google Chrome | Textarea | pending | — | OS2. Record whether manual accessibility was needed and whether the first answer was an empty selection. |
 | S1-14 | Google Chrome | Static page text | pending | — | OS2. |
-| S1-15 | Microsoft Teams | Compose box, default | pending | — | OS2. Teams embeds `MSWebView2`, not Electron. A draft only; never sent. |
+| S1-15 | Microsoft Teams | Compose box, default | pass | Owner-run, 2026-10-05, Quill 1.0.2, InputLeap running: captured through the ⌘C fallback. Teams exposes no accessibility focus at all — `AXFocusedUIElement` and `AXFocusedWindow` of the app answer `kAXErrorNoValue`, `AXManualAccessibility` is unsupported. | Teams embeds `MSWebView2`, not Electron. A draft only; never sent. |
 | S1-16 | Microsoft Teams | Compose box, enhanced accessibility | pending | — | OS2. Only if S1-15 finds no selection. |
 | S1-17 | Slack | Compose box | pending | — | OS2. A draft only; never sent. |
 | S1-18 | Visual Studio Code | Editor | pending | — | OS2. |
@@ -77,7 +77,7 @@ owner session); **n/a** (with a reason).
 | S2-14 | Quill | Clipboard policy **Deny** (switch on) | pending | — | OS2: no snapshot, no restore, ⌘C fallback unavailable. |
 | S2-15 | TextEdit | Alert on Quill's synthetic ⌘V with the switch on for TextEdit | pending | — | OS2. |
 | S2-16 | Safari, Chrome | Paste, verify, restore delay | pending | — | OS2. |
-| S2-17 | Teams, Slack | Paste, verify, restore delay, ⌘Z | pending | — | OS2. Drafts only; never sent. |
+| S2-17 | Teams, Slack | Paste, verify, restore delay, ⌘Z | partial | Teams, owner-run, 2026-10-05, Quill 1.0.2: the paste replaces the selection (outcome `pasted`: the field cannot be re-read to verify). Before 1.0.2 every replace ended `copiedFocusNotReturned` — with InputLeap running every system-wide accessibility query fails, and nothing in Teams could confirm focus. Restore delay and ⌘Z not measured; Slack pending. | OS2. Drafts only; never sent. |
 | S2-18 | Visual Studio Code | Editor: paste, ⌘Z | pending | — | OS2. |
 
 ## S3 — picker focus

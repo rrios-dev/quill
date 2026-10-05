@@ -110,6 +110,43 @@ struct ReplaceTests {
         #expect(await rig.replace() == .replaced)
     }
 
+    @Test("with system-wide accessibility down, the frontmost app's own focus counts as focus back")
+    func systemWideDownFallsBackToFrontmost() async {
+        // InputLeap running: every system-wide query fails, and a Chromium host has
+        // recreated the focused element, so only the frontmost app can tell.
+        let rig = Rig()
+        rig.accessibility.nodes["recreated"] = FakeAccessibility.Node(pid: 7)
+        rig.accessibility.systemFocus = .failure(.cannotComplete)
+        rig.accessibility.frontmost = 7
+        rig.accessibility.applicationFocus[7] = .success("recreated")
+        #expect(await rig.replace() == .replaced)
+    }
+
+    @Test("with system-wide accessibility down, another frontmost app is not focus back")
+    func systemWideDownOtherAppAborts() async {
+        let rig = Rig()
+        rig.accessibility.nodes["elsewhere"] = FakeAccessibility.Node(pid: 99)
+        rig.accessibility.systemFocus = .failure(.cannotComplete)
+        rig.accessibility.frontmost = 99
+        rig.accessibility.applicationFocus[99] = .success("elsewhere")
+        #expect(await rig.replace() == .copiedFocusNotReturned)
+        #expect(rig.keys.postedShortcuts.isEmpty)
+    }
+
+    @Test("with system-wide accessibility down, a frontmost app that exposes no accessibility still counts (Teams)")
+    func systemWideDownNoTreeProceeds() async {
+        // Teams: no focused element at all, the selection captured with ⌘C.
+        let rig = Rig()
+        rig.accessibility.systemFocus = .failure(.cannotComplete)
+        rig.accessibility.frontmost = 7
+        let capture = Capture(text: "hello", app: AppIdentity(pid: 7, bundleIdentifier: "com.microsoft.teams2"),
+                              element: nil, range: nil, editability: .editable, formatting: .unknown,
+                              bounds: nil, method: .copy, elapsed: .zero)
+        let outcome = await rig.replace(capture: capture)
+        #expect(outcome != .copiedFocusNotReturned)
+        #expect(rig.keys.postedShortcuts.contains("v"))
+    }
+
     @Test("focus that never comes back aborts to a copy")
     func focusNeverReturns() async {
         let rig = Rig()
