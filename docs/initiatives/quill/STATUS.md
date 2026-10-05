@@ -53,7 +53,7 @@ Owner sessions (PLAN §2): OS1 2026-10-03 · OS2 — · OS3 2026-10-04 · OS4 �
 | P5-T4 | Performance pass | done | 274e9f44 |
 | P5-T5 | Privacy pass | done | 55b9ff20 |
 | P6-T1 | Verification gate | blocked (OS4: Q10, the Forgejo runner; verify.sh passes on a clean clone) | 10647f53 |
-| P6-T2 | Final name, packaging and notarization | done | — |
+| P6-T2 | Final name, packaging and notarization | done | a9765a53 |
 | P6-T3 | Release checklist and 1.0 | todo | — |
-| P6-T4 | Distribution | todo | — |
+| P6-T4 | Distribution | in progress (published ahead of P6-T3 at the owner's request, 2026-10-05: public repository and GitHub release v1.0.0 with the DMG; quill.rrios.dev in rrios-dev/rrios.dev PR #15, awaiting merge) | — |
 | P6-T5 | Merge and tag | todo | — |
