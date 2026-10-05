@@ -30,6 +30,9 @@ jobs:
           xcrun --show-sdk-version
           swift --version
       - run: swift build
+      # The output guards read names with NaturalLanguage; a fresh runner may lack the
+      # Spanish and English name-tagging models until something asks for them.
+      - run: swift Scripts/request-language-assets.swift
       # The tests that call the on-device model are opt-in (MODELKIT_LIVE_APPLE=1): hosted
       # runners have no Apple Intelligence. No test calls a hosted provider.
       - run: swift test
