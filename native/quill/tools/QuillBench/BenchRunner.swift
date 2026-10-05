@@ -460,22 +460,35 @@ struct BenchRunner: Sendable {
                 let judged = counted.compactMap(\.judge)
                 let latencies = counted.compactMap(\.latencyMilliseconds).sorted()
                 let percent = Int((rate * 100).rounded(.down))
+                // Computed one by one: as a single initializer expression, Swift 6.3's type
+                // checker gives up on it.
+                func mean(_ values: [Double]) -> Double? {
+                    values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
+                }
+                var dimensionMeans: [String: Double]?
+                if !judged.isEmpty {
+                    dimensionMeans = [
+                        "meaning": mean(judged.map(\.meaning)) ?? 0,
+                        "profileMatch": mean(judged.map(\.profileMatch)) ?? 0,
+                        "nothingAdded": mean(judged.map(\.nothingAdded)) ?? 0,
+                        "fluency": mean(judged.map(\.fluency)) ?? 0,
+                    ]
+                }
+                let verdict = rate < developmentPassRate ? "not ready (development \(percent) %)" : "development \(percent) %"
+                let hashes = Set(counted.compactMap(\.promptHash))
+                let latency: Double? = latencies.isEmpty ? nil : latencies[latencies.count / 2]
+                let cost: Double = all.reduce(0) { $0 + $1.cost }
                 summaries.append(ProfileModelSummary(
                     profile: profile, model: model, runs: counted.count, voided: all.count - counted.count,
                     hardPassRate: rate, criticalFailures: critical,
-                    meanSimilarity: similarities.isEmpty ? nil : similarities.reduce(0, +) / Double(similarities.count),
-                    judgeMean: judged.isEmpty ? nil : judged.map(\.mean).reduce(0, +) / Double(judged.count),
-                    judgeDimensionMeans: judged.isEmpty ? nil : [
-                        "meaning": judged.map(\.meaning).reduce(0, +) / Double(judged.count),
-                        "profileMatch": judged.map(\.profileMatch).reduce(0, +) / Double(judged.count),
-                        "nothingAdded": judged.map(\.nothingAdded).reduce(0, +) / Double(judged.count),
-                        "fluency": judged.map(\.fluency).reduce(0, +) / Double(judged.count),
-                    ],
-                    p50LatencyMilliseconds: latencies.isEmpty ? nil : latencies[latencies.count / 2],
-                    cost: all.reduce(0) { $0 + $1.cost },
+                    meanSimilarity: mean(similarities),
+                    judgeMean: mean(judged.map(\.mean)),
+                    judgeDimensionMeans: dimensionMeans,
+                    p50LatencyMilliseconds: latency,
+                    cost: cost,
                     strippedPreambles: counted.filter(\.strippedPreamble).count,
-                    developmentVerdict: rate < developmentPassRate ? "not ready (development \(percent) %)" : "development \(percent) %",
-                    promptHash: Set(counted.compactMap(\.promptHash)).count == 1 ? counted.first?.promptHash : nil,
+                    developmentVerdict: verdict,
+                    promptHash: hashes.count == 1 ? counted.first?.promptHash : nil,
                     identity: model.canonicalIdentity))
             }
         }
