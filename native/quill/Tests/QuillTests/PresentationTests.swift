@@ -90,14 +90,18 @@ struct PresentationTests {
         }
     }
 
+    // Appended one table at a time: as a single chain of `+`, Swift 6.3 (Xcode 26) gives up
+    // type-checking it.
     static var entries: [(String, Presentation.Entry)] {
-        codes.map { ("code \($0)", Presentation.providerError($0)) }
-            + states.map { ("state \($0)", Presentation.engineState($0)) }
-            + refusals.map { ("refusal \($0)", Presentation.refusal($0)) }
-            + outcomes.map { ("outcome \($0)", Presentation.replaceOutcome($0)) }
-            + recipients.map { ("recipient \($0)", Presentation.recipient($0)) }
-            + tradeoffs.map { ("tradeoff \($0)", Presentation.tradeoff($0)) }
-            + [("chooseModel", Presentation.failure(.chooseModel(profile: "Work")))]
+        var entries: [(String, Presentation.Entry)] = []
+        entries += codes.map { ("code \($0)", Presentation.providerError($0)) }
+        entries += states.map { ("state \($0)", Presentation.engineState($0)) }
+        entries += refusals.map { ("refusal \($0)", Presentation.refusal($0)) }
+        entries += outcomes.map { ("outcome \($0)", Presentation.replaceOutcome($0)) }
+        entries += recipients.map { ("recipient \($0)", Presentation.recipient($0)) }
+        entries += tradeoffs.map { ("tradeoff \($0)", Presentation.tradeoff($0)) }
+        entries.append(("chooseModel", Presentation.failure(.chooseModel(profile: "Work"))))
+        return entries
     }
 
     // MARK: Tables
