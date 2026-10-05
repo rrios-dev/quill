@@ -69,7 +69,9 @@ The layout mirrors the monorepo Quill is exported from: the app is in `native/qu
 two libraries it shares with [Ámbar](https://github.com/rrios-dev/ambar) are in
 `native/packages`.
 
-Building needs **Xcode 27** (the macOS 27 SDK); the app it builds runs on macOS 26 and later.
+Build releases with **Xcode 27**: an older Xcode builds Quill too, but without the macOS 27
+SDK it maps the on-device model's newer errors generically. The app runs on macOS 26 and
+later.
 
 ```bash
 cd native/quill

@@ -229,15 +229,21 @@ public struct AppleOnDeviceProvider: ModelProvider {
     /// on macOS 27 would surface as a generic server error.
     static func map(_ error: any Error) -> ProviderError {
         if let error = error as? ProviderError { return error }
+        #if compiler(>=6.4)
         if #available(macOS 27, *), let code = macOS27Code(for: error) {
             return ProviderError(code, error.localizedDescription, provider: providerID)
         }
+        #endif
         if let error = error as? LanguageModelSession.GenerationError {
             return map(error)
         }
         return ProviderError.normalize(error, provider: providerID)
     }
 
+    // The macOS 27 types exist only in the macOS 27 SDK, which comes with Xcode 27 (Swift
+    // 6.4). An older Xcode — a CI runner without Xcode 27 — still builds Quill, mapping
+    // those errors through `ProviderError.normalize`; releases are built with Xcode 27.
+    #if compiler(>=6.4)
     @available(macOS 27, *)
     static func macOS27Code(for error: any Error) -> ProviderError.Code? {
         if let error = error as? LanguageModelError {
@@ -268,6 +274,7 @@ public struct AppleOnDeviceProvider: ModelProvider {
         if error is GeneratedContent.ParsingError { return .malformedResponse }
         return nil
     }
+    #endif
 
     static func map(_ error: LanguageModelSession.GenerationError) -> ProviderError {
         let code: ProviderError.Code = switch error {

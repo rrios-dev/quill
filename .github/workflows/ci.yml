@@ -20,8 +20,8 @@ jobs:
         working-directory: native/quill
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      # Quill builds against the macOS 27 SDK (FoundationModels' current API), so the newest
-      # Xcode on the runner, never an older default.
+      # The newest Xcode on the runner, never an older default: Quill uses the newest
+      # FoundationModels API the SDK offers.
       - name: Select the newest Xcode
         run: |
           xcode=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
