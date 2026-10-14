@@ -109,7 +109,7 @@ final class MeetingHistoryModel {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         var text = "# \(meeting.title)\n\n\(meeting.sourceApp) · \(meeting.startedAt.formatted()) · \(MeetingCopy.duration(meeting.duration))\n\n"
         for synthesis in meeting.syntheses {
-            text += "## \(synthesis.focusName) (\(synthesis.model))\n\n\(synthesis.text)\n\n"
+            text += "## \(coordinator.store.displayName(of: synthesis)) (\(synthesis.model))\n\n\(synthesis.text)\n\n"
         }
         text += "## \(MeetingCopy.t("history.transcript"))\n\n\(meeting.transcript.rendered())\n"
         try? text.write(to: url, atomically: true, encoding: .utf8)
@@ -218,7 +218,7 @@ struct MeetingHistoryView: View {
             let selected = synthesis.id == model.selectedSynthesis?.id
             Button { model.selectedSynthesisID = synthesis.id } label: {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(synthesis.focusName).font(.system(size: 13, weight: .semibold))
+                    Text(model.coordinator.store.displayName(of: synthesis)).font(.system(size: 13, weight: .semibold))
                     Text("\(synthesis.model.split(separator: "/").last ?? "") · \(synthesis.createdAt.formatted(date: .omitted, time: .shortened))")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }

@@ -38,20 +38,28 @@ enum MeetingSnapshots {
         await snap("offer", meetings.debugOfferWindow)
         meetings.debugReset()
 
-        meetings.debugShowLive(app: teams, segments: Array(record.transcript.ordered.prefix(6)).map {
-            var segment = $0
-            segment.speaker = nil
-            return segment
+        // The live panel shows a meeting in another language when one is given
+        // (`QUILL_SNAPSHOT_LIVE`), translated with the lines of `QUILL_SNAPSHOT_LIVE_TRANSLATIONS`:
+        // the product's page shows a meeting translated into the reader's language.
+        let liveLines = DebugHooks.value("QUILL_SNAPSHOT_LIVE")
+            .flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+            .map(parse) ?? parse(text)
+        let translatedLines = DebugHooks.value("QUILL_SNAPSHOT_LIVE_TRANSLATIONS")
+            .flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+            .map(parse)
+        let shown = Array(liveLines.prefix(6))
+        meetings.debugShowLive(app: teams, segments: shown.map { line in
+            TranscriptSegment(channel: line.name == "Yo" ? .me : .others, start: line.start, end: line.start + 5, text: line.said)
         })
         await settle()
         await snap("live", meetings.debugLiveWindow)
-        // During the meeting: voices told apart and partly named, an English meeting
-        // translated, then folded into the orb.
-        meetings.debugLiveVoices(names: ["speaker-1": "Lucía", "speaker-2": "Andrés"],
+        // During the meeting: voices told apart and partly named, translated, then folded
+        // into the orb.
+        let labels = ["Lucía": "speaker-1", "Andrés": "speaker-2", "Marta": "speaker-3", "Diego": "speaker-4"]
+        meetings.debugLiveVoices(lineSpeakers: shown.map { labels[$0.name] },
+                                 names: ["speaker-1": "Lucía", "speaker-2": "Andrés"],
                                  roles: ["speaker-1": "tech-lead"])
-        meetings.debugTranslate(["Okay, let's start with the migration.", "It takes three and a half hours.",
-                                 "We can't stop billing that long.", "What about logical replication?",
-                                 "Fifteen to twenty minutes of downtime.", "That's a week more of work."])
+        meetings.debugTranslate((translatedLines ?? []).prefix(6).map(\.said))
         await settle()
         await snap("live-voices", meetings.debugLiveWindow)
         meetings.debugCollapseLive()
@@ -62,8 +70,14 @@ enum MeetingSnapshots {
         meetings.openMeeting(record.id, step: .people)
         if let window = meetings.debugMeetingWindow(record.id), let screen = window.screen ?? NSScreen.main {
             // As tall as the screen allows: the review is of the analysis, not its first fold.
-            window.setFrame(NSRect(x: screen.visibleFrame.minX, y: screen.visibleFrame.minY,
-                                   width: min(1280, screen.visibleFrame.width), height: screen.visibleFrame.height), display: true)
+            // `QUILL_SNAPSHOT_WIDE=WxH` asks for the window the product's page shows instead.
+            if let wide = DebugHooks.value("QUILL_SNAPSHOT_WIDE").map(NSSizeFromString), wide.width > 0 {
+                window.setFrame(NSRect(x: screen.visibleFrame.minX, y: screen.visibleFrame.maxY - wide.height,
+                                       width: wide.width, height: wide.height), display: true)
+            } else {
+                window.setFrame(NSRect(x: screen.visibleFrame.minX, y: screen.visibleFrame.minY,
+                                       width: min(1280, screen.visibleFrame.width), height: screen.visibleFrame.height), display: true)
+            }
         }
         await settle()
         await snap("meeting", meetings.debugMeetingWindow(record.id))
@@ -110,6 +124,19 @@ enum MeetingSnapshots {
         NSApp.terminate(nil)
     }
 
+    /// `[hh:mm:ss] Name: text` lines.
+    static func parse(_ text: String) -> [(name: String, start: Double, said: String)] {
+        text.split(separator: "\n").compactMap { line in
+            guard line.hasPrefix("["), let close = line.firstIndex(of: "]"), let colon = line[close...].firstIndex(of: ":")
+            else { return nil }
+            let clock = line[line.index(after: line.startIndex)..<close].split(separator: ":").compactMap { Double($0) }
+            let start = clock.count == 3 ? clock[0] * 3600 + clock[1] * 60 + clock[2] : 0
+            let name = line[line.index(close, offsetBy: 2)..<colon].trimmingCharacters(in: .whitespaces)
+            let said = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            return (name, start, said)
+        }
+    }
+
     /// A meeting from `[hh:mm:ss] Name: text` lines: "Yo" is the microphone, everyone
     /// else becomes a diarized speaker, with names and roles as if the user had set them.
     static func seed(text: String, store: MeetingStore) -> MeetingRecord {
@@ -139,9 +166,9 @@ enum MeetingSnapshots {
             if let person = try? store.remember(name: name, roleID: roleOf[name]) { people[label] = person.id }
         }
         var record = MeetingRecord(
-            title: "Reunión semanal de producto", sourceApp: "Microsoft Teams",
+            title: DebugHooks.value("QUILL_SNAPSHOT_TITLE") ?? "Reunión semanal de producto", sourceApp: "Microsoft Teams",
             startedAt: Date().addingTimeInterval(-3_600), duration: 1_920,
-            transcript: Transcript(startedAt: Date(), locale: "es_ES", source: "teams", segments: segments, names: names),
+            transcript: Transcript(startedAt: Date(), locale: DebugHooks.value("QUILL_SNAPSHOT_LOCALE") ?? "es_ES", source: "teams", segments: segments, names: names),
             people: people
         )
         // Ready-made syntheses per focus, so the review shows each kind of result.

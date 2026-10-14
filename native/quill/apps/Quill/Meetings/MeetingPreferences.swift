@@ -116,6 +116,26 @@ enum MeetingCopy {
         String(localized: key, bundle: .localized)
     }
 
+    /// The built-in roles and focuses in the interface's language (MeetingStore.BuiltInText).
+    static var builtInText: MeetingStore.BuiltInText {
+        typealias Entry = MeetingStore.BuiltInText.Entry
+        return MeetingStore.BuiltInText(
+            roles: [
+                "product-owner": Entry(name: t("role.builtin.productOwner"), detail: t("role.builtin.productOwner.summary")),
+                "tech-lead": Entry(name: t("role.builtin.techLead"), detail: t("role.builtin.techLead.summary")),
+                "support": Entry(name: t("role.builtin.support"), detail: t("role.builtin.support.summary")),
+                "engineer": Entry(name: t("role.builtin.engineer"), detail: t("role.builtin.engineer.summary")),
+                "client": Entry(name: t("role.builtin.client"), detail: t("role.builtin.client.summary")),
+                "vendor": Entry(name: t("role.builtin.vendor"), detail: t("role.builtin.vendor.summary")),
+            ],
+            focuses: [
+                "work": Entry(name: t("focus.builtin.work"), detail: t("focus.builtin.work.objective")),
+                "analysis": Entry(name: t("focus.builtin.analysis"), detail: t("focus.builtin.analysis.objective")),
+                "brief": Entry(name: t("focus.builtin.brief"), detail: t("focus.builtin.brief.objective")),
+            ]
+        )
+    }
+
     static func treatment(_ treatment: Treatment) -> String {
         switch treatment {
         case .decides: t("treatment.decides")

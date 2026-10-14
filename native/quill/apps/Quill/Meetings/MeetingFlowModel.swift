@@ -167,6 +167,8 @@ final class MeetingFlowModel {
 
     var palette: MeetingPalette { MeetingPalette(record: record) }
 
+    func focusName(of synthesis: SynthesisRecord) -> String { store.displayName(of: synthesis) }
+
     /// The user's language, in English, when the meeting was held in another one: the
     /// synthesis is written for its reader. Nil when they are the same.
     var readerLanguage: String? {

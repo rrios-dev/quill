@@ -16,6 +16,32 @@ public final class MeetingStore: @unchecked Sendable {
     public let directory: URL
     private let fileManager = FileManager.default
 
+    /// The built-in roles and focuses in the reader's language, keyed by id.
+    ///
+    /// Built-ins are data the user can edit, written in Spanish where they are defined;
+    /// an English reader saw "Soporte" and "Acta de producto" (2026-10-14). A built-in
+    /// the user has not renamed is shown with these; one they renamed keeps their words.
+    public struct BuiltInText: Sendable {
+        public struct Entry: Sendable {
+            public let name: String
+            public let detail: String
+            public init(name: String, detail: String) {
+                self.name = name
+                self.detail = detail
+            }
+        }
+
+        public var roles: [String: Entry]
+        public var focuses: [String: Entry]
+
+        public init(roles: [String: Entry] = [:], focuses: [String: Entry] = [:]) {
+            self.roles = roles
+            self.focuses = focuses
+        }
+    }
+
+    public var builtInText = BuiltInText()
+
     public init(directory: URL) throws {
         self.directory = directory
         try fileManager.createDirectory(at: meetingsDirectory, withIntermediateDirectories: true,
@@ -136,7 +162,34 @@ public final class MeetingStore: @unchecked Sendable {
     // MARK: Roles and focuses
 
     public func roles() -> [MeetingRole] {
-        read([MeetingRole].self, from: rolesFile) ?? MeetingRole.defaults
+        (read([MeetingRole].self, from: rolesFile) ?? MeetingRole.defaults).map(localized)
+    }
+
+    private func localized(_ role: MeetingRole) -> MeetingRole {
+        guard let text = builtInText.roles[role.id],
+              let original = MeetingRole.defaults.first(where: { $0.id == role.id }),
+              role.name == original.name, role.summary == original.summary else { return role }
+        return MeetingRole(id: role.id, name: text.name, summary: text.detail)
+    }
+
+    private func localized(_ focus: SynthesisFocus) -> SynthesisFocus {
+        guard let text = builtInText.focuses[focus.id],
+              let original = SynthesisFocus.builtIns.first(where: { $0.id == focus.id }),
+              focus.name == original.name else { return focus }
+        var shown = focus
+        shown.name = text.name
+        if focus.objective == original.objective { shown.objective = text.detail }
+        return shown
+    }
+
+    /// What a saved synthesis's focus is called now: a built-in's name in the reader's
+    /// language, else the name it had when it was made.
+    public func displayName(of synthesis: SynthesisRecord) -> String {
+        guard let original = SynthesisFocus.builtIns.first(where: { $0.id == synthesis.focusID }),
+              synthesis.focusName == original.name, let text = builtInText.focuses[synthesis.focusID] else {
+            return synthesis.focusName
+        }
+        return text.name
     }
 
     public func saveRoles(_ roles: [MeetingRole]) throws {
@@ -150,7 +203,7 @@ public final class MeetingStore: @unchecked Sendable {
         let tuned = Dictionary(custom.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
         let builtIns = SynthesisFocus.builtIns.map { tuned[$0.id] ?? $0 }
         let builtInIDs = Set(SynthesisFocus.builtIns.map(\.id))
-        return builtIns + custom.filter { !builtInIDs.contains($0.id) }
+        return (builtIns + custom.filter { !builtInIDs.contains($0.id) }).map(localized)
     }
 
     public func saveFocus(_ focus: SynthesisFocus) throws {

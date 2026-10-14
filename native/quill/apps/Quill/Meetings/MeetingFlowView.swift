@@ -435,7 +435,7 @@ private struct AnalysisPane: View {
         } else if let result = model.result, let document = model.document {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    Text(result.focusName).font(.system(size: 13, weight: .semibold))
+                    Text(model.focusName(of: result)).font(.system(size: 13, weight: .semibold))
                     Text("· \(result.model.split(separator: "/").last ?? "") · \(result.createdAt.formatted(.relative(presentation: .named)))")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                     Spacer()

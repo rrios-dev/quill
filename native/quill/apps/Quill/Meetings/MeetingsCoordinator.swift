@@ -100,6 +100,7 @@ final class MeetingsCoordinator {
         self.environment = environment
         let directory = environment.dataDirectory.appendingPathComponent("meetings-data", isDirectory: true)
         store = try MeetingStore(directory: directory)
+        store.builtInText = MeetingCopy.builtInText
         preferences = MeetingPreferences.load(from: directory)
     }
 
@@ -542,21 +543,24 @@ final class MeetingsCoordinator {
     var debugOfferWindow: NSWindow? { offerPanel?.window }
     var debugLiveWindow: NSWindow? { livePanel?.window }
     func debugCollapseLive() { livePanel?.collapse() }
-    /// Voices as a live pass would leave them: label per line, and names for some.
-    func debugLiveVoices(names: [String: String], roles: [String: String]) {
+    /// Voices as a live pass would leave them: a label per line (nil for the user's own),
+    /// and names for some.
+    func debugLiveVoices(lineSpeakers: [String?], names: [String: String], roles: [String: String]) {
         var labels: [String] = []
-        for index in liveLines.indices where liveLines[index].segment.channel == .others {
-            let label = "speaker-\(index % 3 + 1)"
+        for (index, label) in lineSpeakers.enumerated() where liveLines.indices.contains(index) {
+            guard let label, liveLines[index].segment.channel == .others else { continue }
             liveLines[index].speaker = label
             if !labels.contains(label) { labels.append(label) }
         }
         liveVoices = labels.map { LiveVoice(label: $0, name: names[$0] ?? "", roleID: roles[$0], seconds: 30) }
     }
     func debugTranslate(_ translations: [String]) {
-        for (index, text) in translations.enumerated() where liveLines.indices.contains(index) {
+        // Only the others' words are translated, as in a meeting.
+        for (index, text) in translations.enumerated() where liveLines.indices.contains(index) && liveLines[index].segment.channel == .others {
             liveLines[index].translation = text
         }
-        translationState = .active(target: "español")
+        let language = Bundle.main.preferredLocalizations.first ?? "es"
+        translationState = .active(target: Locale(identifier: language).localizedString(forLanguageCode: language) ?? language)
     }
     func debugMeetingWindow(_ id: UUID) -> NSWindow? { meetingWindows[id]?.shownWindow }
     func debugMeetingModel(_ id: UUID) -> MeetingFlowModel? { meetingWindows[id]?.debugModel }
