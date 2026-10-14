@@ -2,21 +2,64 @@
 
 <h1 align="center">Quill</h1>
 
-<p align="center">Rewrite what you select, in your own voice, in any app on your Mac —<br>and understand your meetings, transcribed on your Mac. Free and open source.</p>
+<p align="center">Leave every Teams meeting with the minutes done — transcribed, every voice by name,<br>translated live, on your Mac. And rewrite any text in the voice its reader expects. Free and open source.</p>
 
-<p align="center"><a href="https://quill.rrios.dev/download"><b>Download for macOS</b></a> · <a href="https://quill.rrios.dev">quill.rrios.dev</a></p>
+<p align="center"><a href="https://quill.rrios.dev/download"><b>Download for macOS</b></a> · <a href="https://quill.rrios.dev/en">quill.rrios.dev</a></p>
+
+<p align="center"><img src="https://www.rrios.dev/images/apps/quill/meetings/en/analysis.webp" alt="A meeting in Quill once it ends: the people with their roles, the analysis with the options on the table and who argued for each, and the transcript." width="880"></p>
 
 ---
 
-Select text where you write — a Teams message, an e-mail, a note — and press
-**⌃⌥R**. Quill shows the rewrite next to the selection; press Return and it replaces the
-text where you were typing. Or type what you want ("shorter", "in English", "warmer") and
-press Return.
+When Teams opens the microphone, Quill asks whether to transcribe the call. It transcribes
+it on your Mac, tells the voices apart so you can name them as you talk, translates it live
+if it is in another language and, when you hang up, gives you the minutes: decisions, tasks
+with owner and date, risks and disagreements. No bot joins the call and no audio is kept.
+
+And when you have to write: select text anywhere — a Teams message, an e-mail, a note —
+press **⌃⌥R**, and Quill rewrites it for whoever will read it.
+
+## Meetings
+
+Verified in Microsoft Teams; Zoom, Webex, Slack, FaceTime and Meet in a browser are
+detected the same way but not yet tried in real calls. Quill listens to the meeting app's
+audio and to your microphone separately, so "you" and "the others" are never confused.
+
+- **Transcribed on your Mac** with the system's speech model, in the language you pick
+  when the meeting starts (Spanish, English, French, German, Italian, Portuguese).
+- **Every voice by name.** Voices are told apart on your Mac while the meeting goes on:
+  name each one and give it a role (Product Owner, Tech Lead, Support…) as people speak,
+  and the names stay.
+- **Translated live** with Apple's on-device translation when the meeting is in another
+  language than yours.
+- **A live panel** you can move, resize or fold into a recording dot.
+- **When it ends**, one window with the people, the transcript and the analysis, for the
+  focus you choose:
+
+  | Focus | What you get |
+  |---|---|
+  | **Product minutes** | Decisions, tasks with owner and date as they were said, risks and disagreements. |
+  | **Analysis** | Each topic with the options on the table, who argued for each and why, and what was decided. |
+  | **Brief** | Five lines for whoever wasn't there. |
+  | **Your own** | Write what you want from a meeting; Quill keeps it as a focus. |
+
+- **Weighted by role.** In product minutes what the Product Owner says is a decision and
+  what support says is context; each focus says how much each role counts, and Quill
+  remembers each person's role for the next meeting.
+- **No audio is ever saved** — only the text. Meetings are kept for the days you decide.
+  The analysis is written by the model you choose, in your language.
+
+Quality is measured, not assumed: a bench of meetings with real voices and a known answer
+([`TESTING-MEETINGS.md`](docs/initiatives/quill/TESTING-MEETINGS.md)) — on a ten-minute
+Spanish meeting, 3–4 % word error rate and five of five voices told apart.
+
+## Rewriting
+
+Select text where you write and press **⌃⌥R**. Quill shows the rewrite next to the
+selection; press Return and it replaces the text where you were typing. Or type what you
+want ("shorter", "in English", "warmer") and press Return.
 
 How it rewrites depends on who will read it. Quill does it with **profiles**: a way of
 rewriting for each kind of reader, which you can tune, test and give examples to.
-
-## Profiles
 
 | Profile | What it does |
 |---|---|
@@ -30,33 +73,9 @@ rewriting for each kind of reader, which you can tune, test and give examples to
 Make your own, pin a model to a profile, or give an app its default ("in Teams, use Work";
 optionally applied without the picker).
 
-## Meetings
-
-When a meeting app opens the microphone, Quill offers to transcribe the call. Verified in
-Microsoft Teams; Zoom, Webex, Slack, FaceTime and Meet in a browser are detected the same
-way but not yet tried in real calls. It listens to the meeting app's audio and to your microphone,
-separately, so "you" and "the others" are never confused.
-
-- **Transcribed on your Mac** with the system's speech model, in the language you pick
-  when the meeting starts (Spanish, English, French, German, Italian, Portuguese).
-- **Voices told apart on your Mac** while the meeting goes on: name each voice and give it
-  a role (Product Owner, Tech Lead, Support…) as people speak, and the names stay.
-- **Translated live** with Apple's on-device translation when the meeting is in another
-  language than yours.
-- **A live panel** you can move, resize or fold into a recording dot.
-- **When it ends**, one window with the people, the transcript and the analysis: decisions,
-  tasks with owner and date, risks and disagreements, weighted by each person's role for the
-  focus you choose (minutes, analysis, a brief, or your own). The analysis is written by
-  the model you choose, in your language.
-- **No audio is ever saved** — only the text. Meetings are kept for the days you decide.
-
-Quality is measured, not assumed: a bench of meetings with real voices and a known answer
-([`TESTING-MEETINGS.md`](docs/initiatives/quill/TESTING-MEETINGS.md)) — on a ten-minute
-Spanish meeting, 3–4 % word error rate and five of five voices told apart.
-
 ## Models
 
-Quill does not ship a model and has no server. You choose who rewrites:
+Quill does not ship a model and has no server. You choose who writes the minutes and the rewrites:
 
 - **Apple Intelligence**, on your Mac: free and private, for short texts.
 - **OpenRouter**, **Vercel AI Gateway** or **OpenAI**, with your own API key.
