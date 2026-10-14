@@ -1,0 +1,32 @@
+{
+  "comment": "Ground truth for meeting-1.txt. A synthesis is checked against it: every decision and action item must appear with the right owner and date, the disagreement must be attributed, and nothing outside this list may be stated as decided.",
+  "decisions": [
+    "Full dump migration on Saturday 18 October from 22:00",
+    "Andrés prepares logical replication as the fallback plan",
+    "The old refunds API is not used",
+    "iOS launches 10 November, Android 17 November",
+    "Lucía expands the test environment's disk volume (approved)"
+  ],
+  "actions": [
+    {"owner": "Lucía", "what": "migration runbook", "due": "Wednesday 15 October"},
+    {"owner": "Andrés", "what": "logical replication tested in staging", "due": "Friday 24 October"},
+    {"owner": "Marta", "what": "ask the payment provider for the 3 November date in writing", "due": "today; escalate to their account manager if not confirmed by 20 October"},
+    {"owner": "Marta", "what": "message for Android users about the one-week delay", "due": "7 November"},
+    {"owner": "Diego", "what": "submit the iOS version to Apple review", "due": "Monday 27 October"},
+    {"owner": "Lucía", "what": "expand the test environment's disk volume", "due": "no date (now)"}
+  ],
+  "disagreements": [
+    "Andrés preferred logical replication over the full dump and said so for the record",
+    "Marta preferred launching iOS and Android together; Diego and Andrés prioritised the November campaign"
+  ],
+  "risks": [
+    "The full dump may fail midway: production data is ~30% larger than staging",
+    "If the refunds API does not arrive and the November campaign doubles refunds, support is one person short",
+    "The payment provider's 3 November date is not confirmed in writing"
+  ],
+  "traps": [
+    "The old refunds API is retired on 30 November: not a decision, a fact",
+    "Nobody committed to hiring for support",
+    "The 3 November meeting is a review, not a deadline for anyone"
+  ]
+}

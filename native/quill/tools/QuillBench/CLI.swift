@@ -83,6 +83,7 @@ enum QuillBenchCLI {
             case "export-readiness": return exportReadiness(paths: paths)
             case "check-references": return checkReferences(paths: paths)
             case "holdout": return holdout(args, paths: paths)
+            case "synthesize": return try await synthesize(args, paths: paths, environment: environment)
             default:
                 print(usage)
                 return 64

@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotKey = HotKeyController()
     private let permission = PermissionWatcher()
     private let log = QuillLog(category: "app")
+    /// Meetings (MEETINGS.md §6). Nil if its data folder cannot be created.
+    private(set) var meetings: MeetingsCoordinator?
     /// The provider line's evaluation for the menu that is open, cancelled when it closes.
     private var statusTask: Task<Void, Never>?
     #if DEBUG
@@ -39,6 +41,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         registerShortcut()
         permission.start()
+        do {
+            let meetings = try MeetingsCoordinator(environment: environment)
+            meetings.start()
+            self.meetings = meetings
+        } catch {
+            log.error("meetings unavailable: \(error)")
+        }
         showOnboardingIfNeeded()
         services.onText = { [weak self] text in self?.rewriteFromServices(text) }
         NSApplication.shared.servicesProvider = services
@@ -55,6 +64,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #if DEBUG
         listenForMenuDump()
         if DebugHooks.dumpsAccessibility || DebugHooks.snapshotsPicker { Task { await dumpAccessibility() } }
+        if let target = DebugHooks.listenTarget { Task { await ListenProbe.run(target: target) } }
+        if let transcript = DebugHooks.snapshotsMeetings, let meetings {
+            let openSettings: () -> Void = { [weak self] in self?.openSettings(.meetings) }
+            let settingsWindow: () -> NSWindow? = { [weak self] in self?.settingsWindow?.shownWindow }
+            Task { await MeetingSnapshots.run(meetings: meetings, transcriptPath: transcript,
+                                              openSettings: openSettings, settingsWindow: settingsWindow) }
+        }
         #endif
     }
 
@@ -413,6 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         addPermissionItems(to: menu)
         addProfileItems(to: menu)
+        addMeetingItems(to: menu)
 
         menu.addItem(.separator())
         let status = Self.note(String(localized: "menu.status.checking", bundle: .localized))
@@ -443,6 +460,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             keyEquivalent: "q"
         )
         menu.addItem(quit)
+    }
+
+    /// Meetings: start, or finish the one being transcribed; and the history.
+    private func addMeetingItems(to menu: NSMenu) {
+        guard let meetings else { return }
+        menu.addItem(.separator())
+        let title: String
+        let action: Selector
+        switch meetings.phase {
+        case .listening(let app):
+            title = String(localized: "menu.meeting.finish \(app.name)", bundle: .localized)
+            action = #selector(finishMeeting)
+        case .separating:
+            title = String(localized: "menu.meeting.separating", bundle: .localized)
+            action = #selector(noop)
+        default:
+            title = String(localized: "menu.meeting.start", bundle: .localized)
+            action = #selector(startMeeting)
+        }
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        item.isEnabled = meetings.phase != .separating
+        menu.addItem(item)
+        if case .listening(let app) = meetings.phase {
+            let show = NSMenuItem(title: String(localized: "menu.meeting.showLive", bundle: .localized),
+                                  action: #selector(showLiveMeeting), keyEquivalent: "")
+            show.target = self
+            show.representedObject = app.id
+            menu.addItem(show)
+        }
+        let history = NSMenuItem(title: String(localized: "menu.meeting.history", bundle: .localized),
+                                 action: #selector(openMeetingHistory), keyEquivalent: "")
+        history.target = self
+        menu.addItem(history)
+        if let error = meetings.lastError { menu.addItem(Self.note(error)) }
+    }
+
+    @objc private func startMeeting() { meetings?.startFromMenu() }
+    @objc private func finishMeeting() { Task { await meetings?.finish() } }
+    @objc private func openMeetingHistory() { meetings?.openHistory() }
+    @objc private func noop() {}
+    @objc private func showLiveMeeting() {
+        guard let meetings, case .listening(let app) = meetings.phase else { return }
+        meetings.showLivePanel(app: app)
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -587,7 +648,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     catalog: LiveModelCatalog(registry: environment.registry, listCache: environment.modelCache),
                     readiness: environment.readiness,
                     treatLoopbackAsRemote: DebugHooks.treatsLoopbackAsRemote),
-                apps: AppsPaneModel(settings: environment.settings, profiles: environment.profiles))
+                apps: AppsPaneModel(settings: environment.settings, profiles: environment.profiles),
+                meetings: meetings)
         }
         settingsWindow?.show(pane)
     }

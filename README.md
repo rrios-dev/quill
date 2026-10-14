@@ -2,7 +2,7 @@
 
 <h1 align="center">Quill</h1>
 
-<p align="center">Rewrite what you select, in your own voice, in any app on your Mac.<br>Free and open source.</p>
+<p align="center">Rewrite what you select, in your own voice, in any app on your Mac —<br>and understand your meetings, transcribed on your Mac. Free and open source.</p>
 
 <p align="center"><a href="https://quill.rrios.dev/download"><b>Download for macOS</b></a> · <a href="https://quill.rrios.dev">quill.rrios.dev</a></p>
 
@@ -30,6 +30,30 @@ rewriting for each kind of reader, which you can tune, test and give examples to
 Make your own, pin a model to a profile, or give an app its default ("in Teams, use Work";
 optionally applied without the picker).
 
+## Meetings
+
+When a meeting app opens the microphone, Quill offers to transcribe the call. Verified in
+Microsoft Teams; Zoom, Webex, Slack, FaceTime and Meet in a browser are detected the same
+way but not yet tried in real calls. It listens to the meeting app's audio and to your microphone,
+separately, so "you" and "the others" are never confused.
+
+- **Transcribed on your Mac** with the system's speech model, in the language you pick
+  when the meeting starts (Spanish, English, French, German, Italian, Portuguese).
+- **Voices told apart on your Mac** while the meeting goes on: name each voice and give it
+  a role (Product Owner, Tech Lead, Support…) as people speak, and the names stay.
+- **Translated live** with Apple's on-device translation when the meeting is in another
+  language than yours.
+- **A live panel** you can move, resize or fold into a recording dot.
+- **When it ends**, one window with the people, the transcript and the analysis: decisions,
+  tasks with owner and date, risks and disagreements, weighted by each person's role for the
+  focus you choose (minutes, analysis, a brief, or your own). The analysis is written by
+  the model you choose, in your language.
+- **No audio is ever saved** — only the text. Meetings are kept for the days you decide.
+
+Quality is measured, not assumed: a bench of meetings with real voices and a known answer
+([`TESTING-MEETINGS.md`](docs/initiatives/quill/TESTING-MEETINGS.md)) — on a ten-minute
+Spanish meeting, 3–4 % word error rate and five of five voices told apart.
+
 ## Models
 
 Quill does not ship a model and has no server. You choose who rewrites:
@@ -51,8 +75,10 @@ example. A flagged result tells you why, and it is never applied without you see
 
 ## Privacy
 
-- Your text goes **only** to the provider you chose, and only when you ask for a rewrite.
-  Hosted providers are asked once before the first rewrite.
+- Your text goes **only** to the provider you chose, and only when you ask for a rewrite
+  or a meeting analysis. Hosted providers are asked once before the first use.
+- Meetings: audio stays in memory and is never written to disk. Transcription, voice
+  separation and translation run on your Mac; only the analysis goes to your model.
 - API keys live in the macOS Keychain.
 - No account, no analytics, no telemetry, no server of our own. Release builds log no text.
 - Password fields are never read.
@@ -62,6 +88,12 @@ example. A flagged result tells you why, and it is never applied without you see
 macOS 26 or later on Apple silicon. Quill needs the **Accessibility** permission to read
 the selection and replace it; the first run walks you through it. Apple Intelligence is
 optional.
+
+Meetings also ask for **System Audio Recording** (to hear the meeting app) and the
+**Microphone**. The first meeting in a language downloads the system's speech model for it;
+the first separation of voices downloads the diarization models (about 20 MB) of
+[FluidAudio](https://github.com/FluidInference/FluidAudio) (Apache 2.0), the one
+third-party library Quill uses, since macOS has no voice separation of its own.
 
 ## Building from source
 
@@ -89,9 +121,12 @@ runs.
 The design documents are in [`docs/initiatives/quill`](docs/initiatives/quill):
 [product](docs/initiatives/quill/PRODUCT.md),
 [architecture](docs/initiatives/quill/ARCHITECTURE.md),
-[providers](docs/initiatives/quill/PROVIDERS.md) and
+[providers](docs/initiatives/quill/PROVIDERS.md),
 [the bench](docs/initiatives/quill/BENCH.md) that measures each model and profile
-(`quill-bench`, in `native/quill/tools/QuillBench`).
+(`quill-bench`, in `native/quill/tools/QuillBench`),
+[meetings](docs/initiatives/quill/MEETINGS.md) and
+[how meetings are tested](docs/initiatives/quill/TESTING-MEETINGS.md) (`meeting-bench`, in
+`native/quill/tools/MeetingBench`).
 
 ## License
 

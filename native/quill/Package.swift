@@ -19,11 +19,20 @@ let package = Package(
         .library(name: "ModelKit", targets: ["ModelKit"]),
         .library(name: "SelectionKit", targets: ["SelectionKit"]),
         .library(name: "RewriteKit", targets: ["RewriteKit"]),
+        .library(name: "ListenKit", targets: ["ListenKit"]),
+        .library(name: "SynthesisKit", targets: ["SynthesisKit"]),
+        .library(name: "MeetingKit", targets: ["MeetingKit"]),
         .executable(name: "Quill", targets: ["Quill"]),
         .executable(name: "quill-bench", targets: ["QuillBench"]),
+        .executable(name: "meeting-bench", targets: ["MeetingBench"]),
     ],
     dependencies: [
         .package(name: "Ambar", path: ".."),
+        // Speaker diarization on the Neural Engine, Apache 2.0 (MEETINGS.md). The only
+        // third-party dependency, confined to SpeakerKit, and only because macOS has no
+        // diarization of its own (checked in the macOS 27 SDK). Everything else in a
+        // meeting — capture, transcription, echo cancellation — is the system's.
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4"),
     ],
     targets: [
         // Leaf utilities every Quill target may import. Depends on nothing.
@@ -67,11 +76,51 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
 
+        // Meeting transcription: capturing a meeting app's audio and the microphone, and
+        // turning both into a transcript on the device (MEETINGS.md). Keeps no audio.
+        // Knows nothing about models, profiles or AppKit.
+        .target(
+            name: "ListenKit",
+            path: "packages/ListenKit",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
+        // Meeting synthesis: focuses, prompts and chunking for short contexts, over
+        // ModelKit (MEETINGS.md §3). Knows nothing about audio or AppKit.
+        .target(
+            name: "SynthesisKit",
+            dependencies: ["ModelKit"],
+            path: "packages/SynthesisKit",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
+        // Meetings as Quill keeps them: records, people, roles, focuses on disk, and which
+        // apps meetings happen in (MEETINGS.md §6–7). No UI, no models.
+        .target(
+            name: "MeetingKit",
+            dependencies: ["ListenKit", "SynthesisKit"],
+            path: "packages/MeetingKit",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
+        // Telling the other people in a meeting apart (diarization), over FluidAudio.
+        // Its own target so the dependency stays out of everything else.
+        .target(
+            name: "SpeakerKit",
+            dependencies: [
+                "ListenKit",
+                .product(name: "FluidAudio", package: "FluidAudio"),
+            ],
+            path: "packages/SpeakerKit",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
         // The app. Thin: wiring and UI (ARCHITECTURE §5).
         .executableTarget(
             name: "Quill",
             dependencies: [
-                "QuillSupport", "SelectionKit", "ModelKit", "RewriteKit",
+                "QuillSupport", "SelectionKit", "ModelKit", "RewriteKit", "ListenKit", "SpeakerKit",
+                "SynthesisKit", "MeetingKit",
                 .product(name: "AppCore", package: "Ambar"),
                 .product(name: "GlassUI", package: "Ambar"),
             ],
@@ -86,9 +135,26 @@ let package = Package(
         // excluded so SwiftPM raises no warning for it.
         .executableTarget(
             name: "QuillBench",
-            dependencies: ["RewriteKit", "ModelKit", "QuillSupport"],
+            dependencies: ["RewriteKit", "ModelKit", "QuillSupport", "SynthesisKit"],
             path: "tools/QuillBench",
             exclude: ["data"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
+        // meeting-bench: transcription and voice separation scored on meetings with a
+        // known answer (docs/initiatives/quill/TESTING-MEETINGS.md, tier T2). The corpus
+        // fetchers are Python and the gate is data, both excluded from the target.
+        .executableTarget(
+            name: "MeetingBench",
+            dependencies: ["ListenKit", "SpeakerKit"],
+            path: "tools/MeetingBench",
+            exclude: ["fetch_corpus.py", "fetch_ami.py", "remote_zip.py", "gate.json", "owner-script.txt"],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "MeetingBenchTests",
+            dependencies: ["MeetingBench"],
+            path: "Tests/MeetingBenchTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
 
@@ -116,6 +182,24 @@ let package = Package(
             name: "QuillBenchTests",
             dependencies: ["QuillBench", "RewriteKit", "ModelKit"],
             path: "Tests/QuillBenchTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "ListenKitTests",
+            dependencies: ["ListenKit"],
+            path: "Tests/ListenKitTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "SynthesisKitTests",
+            dependencies: ["SynthesisKit", "ModelKit"],
+            path: "Tests/SynthesisKitTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "MeetingKitTests",
+            dependencies: ["MeetingKit", "ListenKit", "SynthesisKit"],
+            path: "Tests/MeetingKitTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(

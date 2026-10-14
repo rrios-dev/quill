@@ -1,0 +1,8 @@
+{
+  "calibrated": "2026-10-08, first runs on this Mac (Mac Studio, macOS 27). Limits = measured value plus a margin for run-to-run variation; tighten when a change improves them.",
+  "cases": {
+    "c2-es": { "othersWER": 0.06, "meWER": 0.10, "der": 0.20, "attribution": 0.85, "timing": 0.95, "speakerCount": true },
+    "c2-es-noise": { "othersWER": 0.07, "meWER": 0.10, "der": 0.16, "attribution": 0.90, "timing": 0.95, "speakerCount": true },
+    "c3-ami": { "der": 0.27, "speakerCount": true }
+  }
+}

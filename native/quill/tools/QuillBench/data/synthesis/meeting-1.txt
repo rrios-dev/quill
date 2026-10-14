@@ -1,0 +1,37 @@
+[00:00:04] Yo: Buenos días. Vamos a empezar, que tenemos media hora justa. Hoy hay tres temas: la migración de la base de datos de facturación, el retraso del proveedor de pagos y la fecha de lanzamiento de la app móvil. Lucía, ¿empiezas tú con la migración?
+[00:00:21] Lucía: Sí. La migración de PostgreSQL 14 a 17 está preparada en el entorno de pruebas. Hemos ensayado dos veces el volcado completo y tarda unas tres horas y media. El problema es que facturación no puede estar parada tanto tiempo en horario laboral, así que propongo hacerlo el sábado 18 de octubre por la noche.
+[00:00:44] Andrés: ¿Tres horas y media con la réplica lógica o sin ella? Porque si montamos replicación lógica antes, el corte real serían quince o veinte minutos.
+[00:00:55] Lucía: Sin ella. Con replicación lógica tendríamos que revisar las tablas sin clave primaria, que son unas cuarenta en el esquema antiguo de facturas. Eso es trabajo de una semana más.
+[00:01:09] Andrés: Pues yo prefiero esa semana. Un corte de tres horas y media un sábado no es grave, pero si algo sale mal no tenemos margen para volver atrás antes del lunes.
+[00:01:22] Yo: Entiendo los dos puntos. Lucía, ¿cuánto cuesta en riesgo hacer el volcado completo?
+[00:01:30] Lucía: El riesgo principal es que el volcado falle a mitad. En los dos ensayos no ha fallado, pero los datos de producción son un treinta por ciento más grandes que los de pruebas.
+[00:01:44] Marta: Desde soporte os digo que el sábado por la noche apenas hay facturas manuales. Si se cae, el impacto para clientes es mínimo. Lo que me preocupa es el lunes por la mañana, que es cuando entra todo el volumen de facturación recurrente.
+[00:02:03] Yo: Vale. Entonces decidimos esto: se hace el volcado completo el sábado 18 de octubre a partir de las diez de la noche, y en paralelo Andrés prepara la replicación lógica como plan de respaldo para la siguiente ventana si el sábado falla. ¿De acuerdo?
+[00:02:20] Andrés: De acuerdo, aunque sigo pensando que la replicación es más segura. Lo dejo dicho.
+[00:02:27] Lucía: Me parece bien. Yo me encargo del runbook de la migración y lo comparto el miércoles 15.
+[00:02:35] Yo: Perfecto. Andrés, ¿para cuándo podrías tener la replicación lógica probada en pruebas?
+[00:02:41] Andrés: Para el viernes 24 de octubre, contando con las cuarenta tablas sin clave primaria.
+[00:02:48] Yo: Apuntado. Segundo tema, el proveedor de pagos. Marta, ¿qué sabemos?
+[00:02:55] Marta: El proveedor nos dijo que la nueva API de reembolsos estaría el 1 de octubre y todavía no está. Nos han dado una nueva fecha, el 3 de noviembre, pero sin compromiso por escrito. Mientras tanto los reembolsos se siguen haciendo a mano desde soporte, unos sesenta a la semana.
+[00:03:16] Lucía: ¿Y no podemos usar la API antigua de reembolsos para automatizar algo?
+[00:03:21] Marta: La antigua la retiran el 30 de noviembre. Automatizar sobre algo que desaparece en un mes y medio no tiene sentido.
+[00:03:30] Andrés: Estoy de acuerdo con Marta. Además la antigua no devuelve el identificador de la transacción original, así que la conciliación sería un infierno.
+[00:03:41] Yo: Entonces no tocamos la API antigua. Marta, necesito que pidas al proveedor la fecha del 3 de noviembre por escrito, y si no la confirman antes del 20 de octubre escalamos a su responsable de cuenta.
+[00:03:55] Marta: Hecho. Yo me encargo de pedirla hoy mismo.
+[00:04:00] Yo: Y mientras tanto, ¿soporte aguanta los sesenta reembolsos manuales?
+[00:04:06] Marta: Aguantamos, pero si sube el volumen en la campaña de noviembre no. Ese es el riesgo de verdad: si la API no llega y la campaña duplica los reembolsos, nos faltaría una persona en soporte.
+[00:04:20] Yo: Lo dejo como riesgo abierto. Lo revisamos en la reunión del 3 de noviembre. Tercer tema, la app móvil. Diego, ¿cómo vamos?
+[00:04:30] Diego: La versión de iOS está terminada a falta de la revisión de Apple. Android va una semana por detrás porque el SDK de notificaciones nos ha dado problemas con Android 15. La fecha que teníamos era el 10 de noviembre para las dos.
+[00:04:48] Yo: ¿Llegamos al 10 de noviembre con Android?
+[00:04:52] Diego: Si no aparece nada más, sí, pero muy justo. Mi propuesta es lanzar iOS el 10 de noviembre y Android el 17.
+[00:05:02] Marta: Desde soporte preferimos lanzar las dos a la vez. Si salen separadas, nos van a llegar consultas de usuarios de Android preguntando por qué ellos no la tienen.
+[00:05:13] Diego: Lo entiendo, pero retrasar iOS una semana por Android significa perder la ventana de la campaña de noviembre en iOS, que es la mitad de nuestros usuarios.
+[00:05:24] Andrés: Yo estoy con Diego. La campaña pesa más que las consultas.
+[00:05:29] Yo: Vale, decidido: iOS sale el 10 de noviembre y Android el 17 de noviembre. Marta, prepara un mensaje para los usuarios de Android explicando que su versión llega una semana después.
+[00:05:42] Marta: De acuerdo. Lo tengo para el 7 de noviembre.
+[00:05:46] Diego: Yo envío la versión de iOS a revisión de Apple el lunes 27 de octubre, para tener margen si nos la rechazan.
+[00:05:53] Yo: Bien. ¿Algo más? Lucía.
+[00:05:56] Lucía: Solo una cosa: el entorno de pruebas se queda sin espacio en disco al ritmo actual en unas dos semanas. Necesito que alguien apruebe ampliar el volumen.
+[00:06:06] Yo: Aprobado. Amplíalo tú directamente, no hace falta esperar a la reunión.
+[00:06:11] Lucía: Perfecto.
+[00:06:13] Yo: Pues lo dejamos aquí. Resumen rápido: migración el sábado 18 con volcado completo y la replicación lógica de respaldo para el 24, el proveedor de pagos por escrito antes del 20 o escalamos, y la app sale en iOS el 10 y en Android el 17. Gracias a todos.

@@ -16,6 +16,7 @@
 | [AUDIT.md](AUDIT.md) | The audit rounds this plan went through before development. |
 | [SPIKES.md](SPIKES.md) | The app matrix: which capture and replace strategy works where. |
 | [STATUS.md](STATUS.md) | Execution progress, one row per task. |
+| [MEETINGS.md](MEETINGS.md) | Meeting transcription and synthesis: principles, what macOS does, measured spikes, next steps. |
 | [GOAL.md](GOAL.md) | The `/goal` prompt that runs the whole plan. |
 
 ## The problem

@@ -11,3 +11,10 @@ en	settings.apps
 en	system.missionControl
 en	system.spotlight
 en	settings.general
+
+# 2026-10-07 — meetings: "Roles" is the same word in both languages.
+en	focus.roles
+
+# 2026-10-14 — meetings: the two English role names Spanish teams use as they are.
+en	role.builtin.productOwner
+en	role.builtin.techLead

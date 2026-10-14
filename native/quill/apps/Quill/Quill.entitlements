@@ -10,6 +10,14 @@
 	  No Hardened Runtime exceptions either (ARCHITECTURE §6): no microphone, no
 	  JIT, no library-validation exception. Each one relaxes a real protection,
 	  so adding one needs a reason recorded here.
+
+	  audio-input (2026-10-07): meeting transcription (MEETINGS.md) transcribes
+	  the user's own side from the microphone. The Hardened Runtime blocks the
+	  microphone without it. Nothing is recorded: blocks go to the on-device
+	  model and are dropped. Capturing the meeting app's output needs no
+	  entitlement, only the System Audio Recording permission.
 	-->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
 </dict>
 </plist>

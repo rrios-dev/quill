@@ -1,0 +1,37 @@
+[00:00:04] Yo: Good morning. Let's start, we have exactly half an hour. Three topics today: the billing database migration, the payment provider's delay and the mobile app's launch date. Lucía, will you start with the migration?
+[00:00:21] Lucía: Sure. The migration from PostgreSQL 14 to 17 is ready in the test environment. We've rehearsed the full dump twice and it takes about three and a half hours. The problem is billing can't be down that long during working hours, so I propose doing it on Saturday the 18th of October at night.
+[00:00:44] Andrés: Three and a half hours with logical replication or without it? Because if we set up logical replication first, the actual downtime would be fifteen or twenty minutes.
+[00:00:55] Lucía: Without it. With logical replication we'd have to review the tables without a primary key, about forty in the old invoices schema. That's another week of work.
+[00:01:09] Andrés: Then I'd rather spend that week. Three and a half hours down on a Saturday isn't serious, but if something goes wrong we have no room to roll back before Monday.
+[00:01:22] Yo: I understand both points. Lucía, how risky is the full dump?
+[00:01:30] Lucía: The main risk is the dump failing halfway. It didn't fail in either rehearsal, but production data is thirty percent larger than test data.
+[00:01:44] Marta: From support: on a Saturday night there are hardly any manual invoices. If it goes down, the impact on customers is minimal. What worries me is Monday morning, when all the recurring billing comes in.
+[00:02:03] Yo: Okay. So here's the decision: we do the full dump on Saturday the 18th of October from ten at night, and in parallel Andrés prepares logical replication as a fallback for the next window if Saturday fails. Agreed?
+[00:02:20] Andrés: Agreed, although I still think replication is safer. For the record.
+[00:02:27] Lucía: Fine by me. I'll write the migration runbook and share it on Wednesday the 15th.
+[00:02:35] Yo: Perfect. Andrés, when could you have logical replication tested in the test environment?
+[00:02:41] Andrés: By Friday the 24th of October, including the forty tables without a primary key.
+[00:02:48] Yo: Noted. Second topic, the payment provider. Marta, what do we know?
+[00:02:55] Marta: The provider told us the new refunds API would be ready on the 1st of October and it still isn't. They've given us a new date, the 3rd of November, but nothing in writing. Meanwhile support keeps doing refunds by hand, about sixty a week.
+[00:03:16] Lucía: Couldn't we use the old refunds API to automate some of it?
+[00:03:21] Marta: The old one is retired on the 30th of November. Automating on top of something that disappears in a month and a half makes no sense.
+[00:03:30] Andrés: I agree with Marta. Besides, the old one doesn't return the original transaction ID, so reconciliation would be a nightmare.
+[00:03:41] Yo: Then we leave the old API alone. Marta, I need you to ask the provider for the 3rd of November in writing, and if they don't confirm before the 20th of October we escalate to their account manager.
+[00:03:55] Marta: Done. I'll ask them today.
+[00:04:00] Yo: And meanwhile, can support cope with sixty manual refunds?
+[00:04:06] Marta: We can, but not if volume goes up during the November campaign. That's the real risk: if the API doesn't arrive and the campaign doubles refunds, we'd be one person short in support.
+[00:04:20] Yo: I'll leave that as an open risk. We'll review it at the meeting on the 3rd of November. Third topic, the mobile app. Diego, how are we doing?
+[00:04:30] Diego: The iOS version is done, pending Apple's review. Android is a week behind because the notifications SDK gave us trouble with Android 15. Our date was the 10th of November for both.
+[00:04:48] Yo: Can Android make the 10th of November?
+[00:04:52] Diego: If nothing else comes up, yes, but it's very tight. My proposal is to launch iOS on the 10th of November and Android on the 17th.
+[00:05:02] Marta: Support would rather launch both at once. If they ship separately, we'll get Android users asking why they don't have it.
+[00:05:13] Diego: I get that, but delaying iOS a week for Android means missing the November campaign window on iOS, which is half our users.
+[00:05:24] Andrés: I'm with Diego. The campaign matters more than the questions.
+[00:05:29] Yo: Okay, decided: iOS ships on the 10th of November and Android on the 17th of November. Marta, prepare a message for Android users explaining their version arrives a week later.
+[00:05:42] Marta: Agreed. I'll have it by the 7th of November.
+[00:05:46] Diego: I'll submit the iOS version to Apple's review on Monday the 27th of October, to have room if they reject it.
+[00:05:53] Yo: Good. Anything else? Lucía.
+[00:05:56] Lucía: Just one thing: at the current rate the test environment runs out of disk space in about two weeks. I need someone to approve expanding the volume.
+[00:06:06] Yo: Approved. Expand it yourself, no need to wait for the meeting.
+[00:06:11] Lucía: Perfect.
+[00:06:13] Yo: Let's leave it there. Quick summary: the migration on Saturday the 18th with the full dump and logical replication as a fallback by the 24th, the payment provider in writing before the 20th or we escalate, and the app ships on iOS on the 10th and Android on the 17th. Thanks, everyone.
