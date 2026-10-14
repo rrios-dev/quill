@@ -175,13 +175,15 @@ final class MeetingsCoordinator {
         if case .offering = phase { phase = .idle }
     }
 
-    /// The menu's "Transcribe a meeting": the offer for the app using the microphone now,
-    /// or the first meeting app with a running process — so the language can be chosen
-    /// there too.
+    /// The menu's "Transcribe a meeting": the offer for the meeting app using the
+    /// microphone now; else any other app using it (Quill does not know every meeting
+    /// app); else the first meeting app with a running process — so the language can be
+    /// chosen there too.
     func startFromMenu() {
         Task {
             let processes = (try? AudioProcesses.all()) ?? []
             let app = MeetingApp.recording(among: MeetingApp.known, processes: processes).first
+                ?? MeetingApp.unlistedRecording(processes: processes).first.map(Self.unlistedApp)
                 ?? MeetingApp.known.first { app in processes.contains { $0.bundleID.map(app.matches) ?? false } }
             guard let app else {
                 lastError = MeetingCopy.t("meetings.error.noApp")
@@ -190,6 +192,16 @@ final class MeetingsCoordinator {
             }
             offer(app)
         }
+    }
+
+    /// An app outside the list, named as the Finder names it.
+    private static func unlistedApp(bundleID: String) -> MeetingApp {
+        let name = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+            .map { FileManager.default.displayName(atPath: $0.path) }
+            .map { $0.hasSuffix(".app") ? String($0.dropLast(4)) : $0 }
+            ?? NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.localizedName
+            ?? bundleID
+        return MeetingApp.unlisted(bundleID: bundleID, name: name)
     }
 
     // MARK: Listening

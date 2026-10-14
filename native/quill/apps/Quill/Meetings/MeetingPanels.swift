@@ -92,7 +92,7 @@ struct OfferView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(MeetingCopy.t("offer.title")).font(.system(size: 14, weight: .semibold))
-                    Text(app.isBrowser
+                    Text(app.isBrowser || !app.isListed
                          ? String(localized: "offer.body.browser \(app.name)", bundle: .localized)
                          : String(localized: "offer.body \(app.name)", bundle: .localized))
                         .font(.system(size: 13))

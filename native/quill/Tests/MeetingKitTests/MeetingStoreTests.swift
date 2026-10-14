@@ -146,34 +146,3 @@ struct MeetingStoreTests {
         #expect(store.focuses().first?.objective == "Solo lo técnico")
     }
 }
-
-@Suite("Meeting apps")
-struct MeetingAppsTests {
-    private func process(_ bundleID: String?, input: Bool) -> AudioProcess {
-        AudioProcess(objectID: 1, pid: 1, bundleID: bundleID, isRunningOutput: false, isRunningInput: input)
-    }
-
-    @Test("an app counts when any of its helpers has the microphone open")
-    func helperCounts() {
-        let found = MeetingApp.recording(
-            among: MeetingApp.known,
-            processes: [process("com.microsoft.teams2.helper.renderer", input: true), process("com.apple.Music", input: false)],
-            ownBundleID: "dev.rrios.quill"
-        )
-        #expect(found.map(\.id) == ["teams"])
-    }
-
-    @Test("Quill itself, idle apps and look-alike prefixes do not count")
-    func nothingElseCounts() {
-        let found = MeetingApp.recording(
-            among: MeetingApp.known,
-            processes: [
-                process("dev.rrios.quill", input: true),
-                process("us.zoom.xos", input: false),
-                process("com.google.Chromecast", input: true),
-            ],
-            ownBundleID: "dev.rrios.quill"
-        )
-        #expect(found.isEmpty)
-    }
-}

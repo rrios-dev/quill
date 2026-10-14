@@ -27,6 +27,9 @@ struct MeetingPreferences: Codable, Equatable {
     /// The language translations go into: a BCP-47 code. Nil means the user's own
     /// language, the first one the system lists.
     var translationTarget: String?
+    /// The apps Quill knew when these preferences were last saved. Nil in preferences
+    /// from 1.1.0, which knew `MeetingApp.knownIn1_1_0`.
+    var knownApps: Set<String>? = Set(MeetingApp.known.map(\.id))
 
     var translationLanguage: Locale.Language {
         Locale.Language(identifier: translationTarget ?? Locale.preferredLanguages.first ?? "es")
@@ -49,8 +52,21 @@ struct MeetingPreferences: Codable, Equatable {
 
     static func load(from directory: URL) -> MeetingPreferences {
         guard let data = try? Data(contentsOf: url(in: directory)),
-              let decoded = try? JSONDecoder().decode(MeetingPreferences.self, from: data) else { return MeetingPreferences() }
+              var decoded = try? JSONDecoder().decode(MeetingPreferences.self, from: data) else { return MeetingPreferences() }
+        decoded.adoptNewApps()
         return decoded
+    }
+
+    /// Switches on the offer for the apps Quill learnt after these preferences were saved:
+    /// `offerApps` lists what the user left on, so an app it never knew would otherwise
+    /// stay off for good. A new browser follows the browsers' switch, which is one.
+    mutating func adoptNewApps() {
+        let all = Set(MeetingApp.known.map(\.id))
+        let added = all.subtracting(knownApps ?? MeetingApp.knownIn1_1_0)
+        let browsers = Set(MeetingApp.known.filter(\.isBrowser).map(\.id))
+        let browsersOn = !offerApps.isDisjoint(with: browsers.subtracting(added))
+        offerApps.formUnion(added.filter { !browsers.contains($0) || browsersOn })
+        knownApps = all
     }
 
     func save(to directory: URL) throws {

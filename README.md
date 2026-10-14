@@ -20,9 +20,13 @@ press **⌃⌥R**, and Quill rewrites it for whoever will read it.
 
 ## Meetings
 
-Verified in Microsoft Teams; Zoom, Webex, Slack, FaceTime and Meet in a browser are
-detected the same way but not yet tried in real calls. Quill listens to the meeting app's
-audio and to your microphone separately, so "you" and "the others" are never confused.
+It works with Microsoft Teams, Zoom, Webex, Slack, FaceTime, GoTo Meeting, Gather,
+Discord, WhatsApp, Telegram and Signal, and with any meeting in a browser (Google Meet,
+Teams or Zoom on the web…) in Chrome, Safari, Edge, Arc, Dia, Brave, Firefox, Zen, Opera,
+Vivaldi, Chromium or Comet. For any other app, *Transcribe a meeting* in the menu offers
+whichever app has the microphone open. So far it has been tried in real calls only in
+Teams. Quill listens to the meeting app's audio and to your microphone
+separately, so "you" and "the others" are never confused.
 
 - **Transcribed on your Mac** with the system's speech model, in the language you pick
   when the meeting starts (Spanish, English, French, German, Italian, Portuguese).
