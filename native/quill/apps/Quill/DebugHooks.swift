@@ -29,6 +29,20 @@ enum DebugHooks {
     /// `QUILL_LOG_HOSTS=1` — log the host of every request a provider makes (P5-T5).
     static var logsHosts: Bool { value("QUILL_LOG_HOSTS") != nil }
 
+    /// `QUILL_LISTEN=<target>` — transcribe a process's audio for `QUILL_LISTEN_SECONDS`
+    /// (default 30), write the transcript to `QUILL_LISTEN_REPORT` and quit (MEETINGS.md,
+    /// spike S1). `<target>` is `pid:<n>`, `bundle:<id>[,<id>…]` or `list`, which prints
+    /// the processes Core Audio sees. `QUILL_LISTEN_MIC=1` adds the microphone as "me";
+    /// `QUILL_LISTEN_MUTE=1` silences the tapped process, for synthetic test audio.
+    static var listenTarget: String? { value("QUILL_LISTEN") }
+
+    /// `QUILL_SNAPSHOT_MEETINGS=<transcript.txt>` — seed a meeting from a transcript in
+    /// `[hh:mm:ss] Name: text` lines (with `QUILL_SNAPSHOT_SYNTHESIS=<file.md>` and (fixtures: tools/QuillBench/data/synthesis/meeting-1.synthesis-*.md)
+    /// `QUILL_SNAPSHOT_ANALYSIS=<file.md>` as its syntheses for the "work" and "analysis"
+    /// focuses), open every meetings surface in turn and print `SNAP <surface> <window>`
+    /// for `screencapture -l`, then quit. Run with an empty `QUILL_DATA_DIR`.
+    static var snapshotsMeetings: String? { value("QUILL_SNAPSHOT_MEETINGS") }
+
     /// `QUILL_SUPPRESS_PROMPTS=1` — never ask the system for a permission prompt.
     static var suppressesPrompts: Bool { value("QUILL_SUPPRESS_PROMPTS") != nil }
 

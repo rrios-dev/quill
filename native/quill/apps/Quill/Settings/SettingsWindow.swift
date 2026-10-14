@@ -10,13 +10,16 @@ final class SettingsWindowController {
     private let profiles: ProfilesPaneModel
     private let apps: AppsPaneModel
     private let general: GeneralPaneModel
+    private let meetings: MeetingsCoordinator?
     private let selection = SettingsSelection()
 
-    init(general: GeneralPaneModel, providers: ProvidersPaneModel, profiles: ProfilesPaneModel, apps: AppsPaneModel) {
+    init(general: GeneralPaneModel, providers: ProvidersPaneModel, profiles: ProfilesPaneModel, apps: AppsPaneModel,
+         meetings: MeetingsCoordinator? = nil) {
         self.general = general
         self.providers = providers
         self.profiles = profiles
         self.apps = apps
+        self.meetings = meetings
     }
 
     var shownWindow: NSWindow? { window }
@@ -75,19 +78,23 @@ final class SettingsWindowController {
         case .providers: return host(ProvidersPane(model: providers))
         case .profiles: return host(ProfilesPane(model: profiles, providers: providers))
         case .apps: return host(AppsPane(model: apps))
+        case .meetings:
+            guard let meetings else { return host(EmptyView()) }
+            return host(MeetingsPane(coordinator: meetings, openFocusEditor: { meetings.openFocusEditor() }))
         case .about: return host(AboutPane())
         }
     }
 }
 
 enum SettingsPane: String, Hashable, CaseIterable {
-    case general, providers, profiles, apps, about
+    case general, providers, profiles, meetings, apps, about
 
     var title: String {
         switch self {
         case .general: PickerCopy.string("settings.general")
         case .providers: PickerCopy.string("settings.providers")
         case .profiles: PickerCopy.string("settings.profiles")
+        case .meetings: PickerCopy.string("settings.meetings")
         case .apps: PickerCopy.string("settings.apps")
         case .about: PickerCopy.string("settings.about")
         }
@@ -97,7 +104,7 @@ enum SettingsPane: String, Hashable, CaseIterable {
     var height: CGFloat {
         switch self {
         case .general: 520
-        case .providers, .profiles: 620
+        case .providers, .profiles, .meetings: 620
         case .apps: 420
         case .about: 600
         }
@@ -108,6 +115,7 @@ enum SettingsPane: String, Hashable, CaseIterable {
         case .general: "gearshape"
         case .providers: "cpu"
         case .profiles: "person.text.rectangle"
+        case .meetings: "waveform"
         case .apps: "square.grid.2x2"
         case .about: "info.circle"
         }

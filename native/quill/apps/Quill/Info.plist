@@ -24,9 +24,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.2</string>
+	<string>1.1.0</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>LSUIElement</key>
@@ -36,10 +36,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Quill listens to the meeting app you choose to write its transcript on this Mac. The audio is never saved.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Roberto Ríos</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Quill connects to a model server on your network only when you add one in Settings.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Quill transcribes your side of a meeting on this Mac. The audio is never saved.</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
