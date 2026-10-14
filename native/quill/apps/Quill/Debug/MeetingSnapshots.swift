@@ -19,7 +19,17 @@ enum MeetingSnapshots {
             }
             print("SNAP \(surface) \(window.windowNumber)")
             fflush(stdout)
-            try? await Task.sleep(for: .seconds(2))
+            // With `QUILL_SNAPSHOT_ACK=<dir>`, wait until the capturer drops `<surface>.done`
+            // there: on a loaded Mac each capture takes seconds, a fixed wait lets the
+            // harness move on first, and the image shows the next state under this name.
+            if let acks = DebugHooks.value("QUILL_SNAPSHOT_ACK") {
+                let done = URL(fileURLWithPath: acks).appendingPathComponent("\(surface).done").path
+                for _ in 0..<150 where !FileManager.default.fileExists(atPath: done) {
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+            } else {
+                try? await Task.sleep(for: .seconds(4))
+            }
         }
         guard let text = try? String(contentsOfFile: transcriptPath, encoding: .utf8) else {
             print("SNAP-ERROR no transcript at \(transcriptPath)")
