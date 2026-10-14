@@ -2,7 +2,7 @@
 
 <h1 align="center">Quill</h1>
 
-<p align="center">Leave every Teams meeting with the minutes done — transcribed, every voice by name,<br>translated live, on your Mac. And rewrite any text in the voice its reader expects. Free and open source.</p>
+<p align="center">Leave every meeting with the minutes done — transcribed, every voice by name,<br>translated live, on your Mac, whatever app it happens in. And rewrite any text in the voice its reader expects. Free and open source.</p>
 
 <p align="center"><a href="https://quill.rrios.dev/download"><b>Download for macOS</b></a> · <a href="https://quill.rrios.dev/en">quill.rrios.dev</a></p>
 
@@ -10,7 +10,8 @@
 
 ---
 
-When Teams opens the microphone, Quill asks whether to transcribe the call. It transcribes
+When the meeting app opens the microphone — Teams, Zoom, Meet in a browser, Slack… —
+Quill asks whether to transcribe the call. It transcribes
 it on your Mac, tells the voices apart so you can name them as you talk, translates it live
 if it is in another language and, when you hang up, gives you the minutes: decisions, tasks
 with owner and date, risks and disagreements. No bot joins the call and no audio is kept.
