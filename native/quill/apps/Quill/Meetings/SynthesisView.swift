@@ -432,13 +432,24 @@ private struct DateBadge: View {
 struct MeetingPalette {
     struct Entry: Equatable {
         let label: String
+        /// What the reader sees: the name given, else "Me" / "Person 2" in their language.
         let name: String
         let color: Color
+        /// What the transcript — and so the synthesis — calls this voice ("Yo",
+        /// "Persona 2" until it has a name). Matched too, so an unnamed voice is found in
+        /// the analysis whatever the interface's language.
+        var transcriptName: String? = nil
 
-        var initial: String {
-            if label == "me", name == "Yo" { return "Y" }
-            return name.first.map { String($0).uppercased() } ?? "?"
+        init(label: String, name: String, color: Color, transcriptName: String? = nil) {
+            self.label = label
+            self.name = name
+            self.color = color
+            self.transcriptName = transcriptName
         }
+
+        var initial: String { name.first.map { String($0).uppercased() } ?? "?" }
+
+        var names: [String] { [name] + (transcriptName.map { $0 == name ? [] : [$0] } ?? []) }
     }
 
     let entries: [Entry]
@@ -447,18 +458,33 @@ struct MeetingPalette {
         entries = record.labels.map { label in
             let segment = TranscriptSegment(channel: label == "me" ? .me : .others, start: 0, end: 0, text: "",
                                             speaker: label == "me" || label == "others" ? nil : label)
-            return Entry(label: label, name: record.transcript.label(for: segment), color: SpeakerColors.color(for: label))
+            let transcriptName = record.transcript.label(for: segment)
+            return Entry(label: label, name: record.transcript.names[label] ?? MeetingPalette.defaultName(for: label),
+                         color: SpeakerColors.color(for: label), transcriptName: transcriptName)
         }
     }
 
     func name(for label: String) -> String { entries.first { $0.label == label }?.name ?? label }
+
+    /// The name the transcript and the participants use for a label.
+    func transcriptName(for label: String) -> String {
+        entries.first { $0.label == label }.flatMap { $0.transcriptName ?? $0.name } ?? label
+    }
+
+    /// "Me", "Others", "Person 2", in the interface's language.
+    static func defaultName(for label: String) -> String {
+        if label == "me" { return MeetingCopy.t("label.me") }
+        if label == "others" { return MeetingCopy.t("label.others") }
+        let number = label.split(separator: "-").last.map(String.init) ?? label
+        return String(localized: "label.person \(number)", bundle: .localized)
+    }
 
     func entry(for label: String) -> Entry? { entries.first { $0.label == label } }
 
     /// The person a table cell names: the whole cell, or its first name.
     func entry(named text: String) -> Entry? {
         let key = Self.fold(text.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: .whitespaces))
-        return entries.first { Self.fold($0.name) == key }
+        return entries.first { $0.names.contains { Self.fold($0) == key } }
             ?? entries.first { Self.fold($0.name.split(separator: " ").first.map(String.init) ?? "") == key }
     }
 
@@ -473,15 +499,17 @@ struct MeetingPalette {
     func inline(_ text: String) -> AttributedString {
         var attributed = (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
             ?? AttributedString(text)
-        for entry in entries where entry.name.count > 1 {
-            var searchStart = attributed.startIndex
-            while searchStart < attributed.endIndex,
-                  let range = attributed[searchStart...].range(of: entry.name) {
-                if isWordBoundary(attributed, before: range.lowerBound), isWordBoundary(attributed, after: range.upperBound) {
-                    attributed[range].foregroundColor = entry.color
-                    attributed[range].inlinePresentationIntent = .stronglyEmphasized
+        for entry in entries {
+            for name in entry.names where name.count > 1 {
+                var searchStart = attributed.startIndex
+                while searchStart < attributed.endIndex,
+                      let range = attributed[searchStart...].range(of: name) {
+                    if isWordBoundary(attributed, before: range.lowerBound), isWordBoundary(attributed, after: range.upperBound) {
+                        attributed[range].foregroundColor = entry.color
+                        attributed[range].inlinePresentationIntent = .stronglyEmphasized
+                    }
+                    searchStart = range.upperBound
                 }
-                searchStart = range.upperBound
             }
         }
         return attributed

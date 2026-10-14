@@ -189,7 +189,7 @@ final class MeetingFlowModel {
     }
 
     func treatment(for label: String) -> Treatment? {
-        participants.first { $0.name == palette.name(for: label) }?.treatment
+        participants.first { $0.name == palette.transcriptName(for: label) }?.treatment
     }
 
     func toggleSelection(_ label: String) {

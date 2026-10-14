@@ -97,8 +97,8 @@ enum SynthesisModelChoice: CaseIterable, Identifiable {
     /// Measured on a six-minute meeting (S3); scales with length.
     var costHint: String {
         switch self {
-        case .fidelity: "≈ 0,02 $"
-        case .economy: "≈ 0,001 $"
+        case .fidelity: "≈ " + 0.02.formatted(.currency(code: "USD").precision(.significantDigits(1)))
+        case .economy: "≈ " + 0.001.formatted(.currency(code: "USD").precision(.significantDigits(1)))
         case .onDevice: MeetingCopy.t("synthesis.model.draft")
         }
     }
