@@ -19,6 +19,8 @@ enum Pipeline {
         var othersWER: Double?
         var meWER: Double?
         var diarization: Metrics.Diarization?
+        /// People who came out as one voice (`Metrics.merged`).
+        var merged: [[String]]?
         /// Of the words transcribed right, how many went to the right person.
         var attribution: Double?
         /// Of the words transcribed right, how many are placed within half a second of
@@ -76,9 +78,15 @@ enum Pipeline {
         let raw = Transcript(startedAt: Date(), locale: reference.locale, source: reference.name, segments: collected.segments)
         var transcript = raw
         var turns: [SpeakerTurn] = []
-        var notes: [String] = transcribes ? [] : ["the speech model for \(locale.identifier) is not installed: words not measured"]
+        let notes: [String] = transcribes ? [] : ["the speech model for \(locale.identifier) is not installed: words not measured"]
         if !othersSamples.isEmpty {
-            let separator = SpeakerSeparator(modelsDirectory: models)
+            // BENCH_MERGE_DISTANCE: try another clustering cut without touching the product.
+            let environment = ProcessInfo.processInfo.environment
+            let separator = SpeakerSeparator(
+                modelsDirectory: models,
+                expectedSpeakers: environment["BENCH_SPEAKERS"].flatMap(Int.init),
+                mergeDistance: environment["BENCH_MERGE_DISTANCE"].flatMap(Double.init),
+                tuning: (environment["BENCH_FA"].flatMap(Double.init), environment["BENCH_FB"].flatMap(Double.init)))
             try await separator.prepare()
             let separated = try await separator.separate(othersSamples)
             turns = ProcessInfo.processInfo.environment["BENCH_RAW_VOICES"] != nil
@@ -132,6 +140,7 @@ enum Pipeline {
                 let hypTurns = turns.map { Metrics.Turn(speaker: $0.speaker, start: $0.start, end: $0.end) }
                 let rawMapping = Metrics.mapping(reference: refTurns, hypothesis: hypTurns)
                 report.diarization = Metrics.diarization(reference: refTurns, hypothesis: hypTurns, mapping: rawMapping)
+                report.merged = Metrics.merged(reference: refTurns, hypothesis: hypTurns)
                 // Transcript labels are renumbered ("speaker-1"…) by assigningSpeakers, so
                 // map them on their own segments' times.
                 let labelled = transcript.segments.filter { $0.channel == .others && $0.speaker != nil }

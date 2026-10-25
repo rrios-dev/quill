@@ -326,7 +326,7 @@
 "system.other" = "another system shortcut";
 "about.privacy %@" = "What %@ keeps";
 "about.privacy.local" = "Your profiles, examples, samples and settings stay on this Mac.";
-"about.privacy.network" = "Your text leaves this Mac only when you rewrite or try a profile with a hosted model, and only to its provider.";
+"about.privacy.network" = "Your text leaves this Mac only when you rewrite or try a profile with a hosted model, and only to its provider. Once a day it also asks GitHub whether a new version exists, sending nothing of yours.";
 "about.privacy.keys" = "API keys are kept in your Keychain.";
 "about.privacy.nothing" = "No analytics, no telemetry, no history of your rewrites.";
 "about.licences" = "Licences";
@@ -459,6 +459,11 @@
 "meeting.transcript.only" = "only their turns";
 "meeting.transcript.all" = "Show every turn";
 "meeting.transcript.none" = "Nothing matches.";
+"meeting.voice.saidBy" = "Said by…";
+"meeting.voice.newPerson" = "Someone else";
+"meeting.voice.proposal %lld %@" = "%lld more sentences sound like %@. Move them too?";
+"meeting.voice.proposal.accept" = "Move them";
+"meeting.voice.proposal.dismiss" = "Not now";
 "role.builtin.productOwner" = "Product Owner";
 "role.builtin.productOwner.summary" = "Prioritises and decides the product";
 "role.builtin.techLead" = "Tech Lead";
@@ -582,3 +587,16 @@
 "pane.history.help" = "Text only: transcripts and syntheses. Audio is never kept.";
 "pane.browsers" = "Browsers (Meet and other sites)";
 "focus.guidance.help" = "Added to the focus rules. Write them as you would tell whoever takes the minutes.";
+
+/* Updates (J-07) */
+"menu.update %@ %@" = "Update %1$@ to %2$@…";
+"menu.update.badge %@ %@" = "%1$@: version %2$@ is available";
+"menu.update.skip" = "Skip This Version";
+"general.updates" = "Updates";
+"general.updates.auto" = "Check for new versions automatically";
+"general.updates.now" = "Check Now";
+"general.updates.upToDate" = "You have the latest version.";
+"general.updates.failed" = "Could not check. It will try again.";
+"general.updates.available %@" = "Version %@ is available.";
+"general.updates.download" = "Download";
+"general.updates.note" = "Once a day GitHub is asked for the latest published version. Nothing of yours is sent.";

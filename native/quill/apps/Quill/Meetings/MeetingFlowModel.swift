@@ -29,6 +29,25 @@ final class MeetingFlowModel {
         let start: Double
         let end: Double
         let text: String
+        /// The segments it is made of, each a sentence the user can give to another voice.
+        var lines: [Line] = []
+    }
+
+    /// One segment of a turn: its index in the transcript's `segments`.
+    struct Line: Identifiable, Equatable {
+        var id: Int { index }
+        let index: Int
+        let text: String
+        /// The others' channel: only those can be given to another voice.
+        let movable: Bool
+    }
+
+    /// Sentences that sound like the ones the user just moved, offered to follow them
+    /// (VOICES.md S1).
+    struct Proposal: Equatable {
+        let source: String
+        let target: String
+        let indices: [Int]
     }
 
     /// How much each voice took of the meeting.
@@ -82,6 +101,7 @@ final class MeetingFlowModel {
     }
     private(set) var transcriptTranslation: TranscriptTranslation = .notNeeded
     private(set) var stats: [SpeakerStat] = []
+    private(set) var proposal: Proposal?
 
     private let coordinator: MeetingsCoordinator
     private let log = QuillLog(category: "meeting-flow")
@@ -217,13 +237,21 @@ final class MeetingFlowModel {
 
     private func rebuildTranscript() {
         var merged: [Turn] = []
-        for segment in record.transcript.ordered {
+        let segments = record.transcript.segments
+        let order = segments.indices.sorted { a, b in
+            let lhs = segments[a], rhs = segments[b]
+            return lhs.start == rhs.start ? lhs.channel == .me && rhs.channel != .me : lhs.start < rhs.start
+        }
+        for index in order {
+            let segment = segments[index]
             let label = segment.speaker ?? segment.channel.rawValue
+            let line = Line(index: index, text: segment.text, movable: segment.channel == .others)
             if let last = merged.last, last.label == label {
                 merged[merged.count - 1] = Turn(id: last.id, label: label, start: last.start, end: max(last.end, segment.end),
-                                                text: last.text + " " + segment.text)
+                                                text: last.text + " " + segment.text, lines: last.lines + [line])
             } else {
-                merged.append(Turn(id: merged.count, label: label, start: segment.start, end: segment.end, text: segment.text))
+                merged.append(Turn(id: merged.count, label: label, start: segment.start, end: segment.end, text: segment.text,
+                                   lines: [line]))
             }
         }
         turns = merged
@@ -239,6 +267,40 @@ final class MeetingFlowModel {
                         turns: counts[label] ?? 0)
         }
     }
+
+    // MARK: Who said it
+
+    /// The voices a sentence can be given to: every other voice of the others' channel.
+    func voiceChoices(excluding label: String) -> [String] {
+        record.labels.filter { $0 != label && $0 != "me" && $0 != "others" }
+    }
+
+    /// "This was said by someone else": the sentence goes to `label`, or to a new voice
+    /// when nil. From the second sentence a voice receives, the ones still under the old
+    /// voice that sound like them are proposed (`Transcript.soundingLike`).
+    func move(sentence index: Int, to label: String?) {
+        guard record.transcript.segments.indices.contains(index),
+              let source = record.transcript.segments[index].speaker else { return }
+        commitPeople()
+        let target = label ?? record.transcript.newVoiceLabel
+        record.transcript.move([index], to: target)
+        let likes = record.transcript.soundingLike(target, from: source)
+        proposal = likes.isEmpty ? nil : Proposal(source: source, target: target, indices: likes)
+        persist()
+        reload()
+    }
+
+    func acceptProposal() {
+        guard let proposal else { return }
+        record.transcript.move(proposal.indices, to: proposal.target)
+        self.proposal = nil
+        persist()
+        reload()
+    }
+
+    func dismissProposal() { proposal = nil }
+
+    func isProposed(_ index: Int) -> Bool { proposal?.indices.contains(index) ?? false }
 
     /// Where the timeline ends: the recorded duration, or the last word when longer.
     var timelineLength: Double { max(record.duration, turns.last?.end ?? 0, 1) }

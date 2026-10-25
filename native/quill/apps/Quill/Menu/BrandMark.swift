@@ -5,15 +5,26 @@ import AppKit
 /// brand's (assets/brand/QuillBrand.swift, `drawMono`), simplified for 18 points: the
 /// barbs and notches would be noise at this size, the silhouette is what reads.
 enum BrandMark {
-    static func menuBarImage(accessibilityDescription: String) -> NSImage {
+    /// - Parameter badged: a dot in the top-right corner, for "a newer version exists".
+    static func menuBarImage(accessibilityDescription: String, badged: Bool = false) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.saveGState()
             // The brand's 1024 canvas, framed on the mark's ink — knob to knob (x 162…862) and
             // quill tip to lower knob (y 150…758) — with a hair of margin, centred.
             let scale: CGFloat = 18 / 724
             context.scaleBy(x: scale, y: scale)
             context.translateBy(x: -150, y: -92)
             draw(in: context)
+            context.restoreGState()
+            if badged {
+                // Cut a ring first so the dot reads apart from the mark it overlaps.
+                context.setBlendMode(.clear)
+                context.fillEllipse(in: CGRect(x: 11, y: 0, width: 7.5, height: 7.5))
+                context.setBlendMode(.normal)
+                context.setFillColor(NSColor.black.cgColor)
+                context.fillEllipse(in: CGRect(x: 12.25, y: 1.25, width: 5, height: 5))
+            }
             return true
         }
         image.isTemplate = true

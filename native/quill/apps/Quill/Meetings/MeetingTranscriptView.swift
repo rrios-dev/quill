@@ -38,6 +38,24 @@ struct MeetingTranscriptView: View {
                         Text(MeetingCopy.t("meeting.translation.working")).font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }
+                if let proposal = model.proposal {
+                    let name = palette.entry(for: proposal.target)?.name ?? model.displayName(for: proposal.target)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "meeting.voice.proposal \(proposal.indices.count) \(name)", bundle: .localized))
+                            .font(.system(size: 12))
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            Button(MeetingCopy.t("meeting.voice.proposal.accept")) { model.acceptProposal() }
+                                .controlSize(.small)
+                                .keyboardShortcut(.defaultAction)
+                            Button(MeetingCopy.t("meeting.voice.proposal.dismiss")) { model.dismissProposal() }
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.accentColor.opacity(0.10), in: .rect(cornerRadius: 7))
+                }
                 if let label = model.selectedLabel, let entry = palette.entry(for: label) {
                     HStack(spacing: 6) {
                         PersonChip(entry: entry)
@@ -74,9 +92,17 @@ struct MeetingTranscriptView: View {
                                         Text(MeetingCopy.clock(turn.start))
                                             .font(.system(size: 11)).foregroundStyle(.tertiary).monospacedDigit()
                                     }
-                                    Text(turn.text)
-                                        .font(.system(size: 13))
-                                        .fixedSize(horizontal: false, vertical: true)
+                                    ForEach(turn.lines) { line in
+                                        Text(line.text)
+                                            .font(.system(size: 13))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .padding(.horizontal, model.isProposed(line.index) ? 4 : 0)
+                                            .background(model.isProposed(line.index) ? Color.accentColor.opacity(0.16) : .clear,
+                                                        in: .rect(cornerRadius: 4))
+                                            .contextMenu {
+                                                if line.movable { saidByMenu(line: line, from: turn.label, palette: palette) }
+                                            }
+                                    }
                                     if let translation = model.translation(of: turn) {
                                         Text(translation)
                                             .font(.system(size: 13))
@@ -102,6 +128,11 @@ struct MeetingTranscriptView: View {
                         download = nil
                     }
                 }
+                .onChange(of: model.proposal) { _, proposal in
+                    guard let first = proposal?.indices.first,
+                          let turn = model.turns.first(where: { $0.lines.contains { $0.index == first } }) else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(turn.id, anchor: .center) }
+                }
                 .onChange(of: model.jumpTarget?.serial) { _, _ in
                     guard let time = model.jumpTarget?.time else { return }
                     let target = model.turns.last { $0.start <= time } ?? model.turns.first
@@ -114,6 +145,21 @@ struct MeetingTranscriptView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// "Said by…": the sentence goes to another voice of the meeting, or to someone the
+    /// separation did not hear as their own.
+    @ViewBuilder
+    private func saidByMenu(line: MeetingFlowModel.Line, from label: String, palette: MeetingPalette) -> some View {
+        Menu(MeetingCopy.t("meeting.voice.saidBy")) {
+            ForEach(model.voiceChoices(excluding: label), id: \.self) { choice in
+                Button(palette.entry(for: choice)?.name ?? model.displayName(for: choice)) {
+                    model.move(sentence: line.index, to: choice)
+                }
+            }
+            Divider()
+            Button(MeetingCopy.t("meeting.voice.newPerson")) { model.move(sentence: line.index, to: nil) }
         }
     }
 }

@@ -26,6 +26,25 @@ SPEAKERS = [
     ("75/es_ve_male", "02484", "me", 16),
 ]
 
+# The pool for the similar-voices case (C4) and the two-meeting case (C5): six men and
+# six women of two accents, none of them in C2. `meeting-bench prepare` measures how alike
+# their voices are and composes C4 from the most alike pairs, so the case reproduces what
+# fails in real meetings: two people who sound the same coming out as one.
+POOL = [
+    ("72/es_co_male", "00610", "pool", 24),
+    ("72/es_co_male", "01523", "pool", 24),
+    ("72/es_co_male", "02121", "pool", 24),
+    ("73/es_pe_male", "00295", "pool", 24),
+    ("73/es_pe_male", "00610", "pool", 24),
+    ("73/es_pe_male", "02121", "pool", 24),
+    ("72/es_co_female", "00610", "pool", 24),
+    ("72/es_co_female", "01523", "pool", 24),
+    ("72/es_co_female", "02436", "pool", 24),
+    ("73/es_pe_female", "00610", "pool", 24),
+    ("73/es_pe_female", "01208", "pool", 24),
+    ("73/es_pe_female", "02121", "pool", 24),
+]
+
 
 def main():
     cache = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Library/Caches/QuillMeetingBench")
@@ -34,7 +53,7 @@ def main():
     manifest = {"source": "OpenSLR 61, 71-75 (CC BY-SA 4.0)", "speakers": []}
     archives = {}
     total = 0
-    for dataset, speaker, role, count in SPEAKERS:
+    for dataset, speaker, role, count in SPEAKERS + POOL:
         archive = archives.get(dataset) or RemoteZip(f"{BASE}/{dataset}.zip")
         archives[dataset] = archive
         lines = dict(
@@ -60,7 +79,11 @@ def main():
                     handle.write(data)
             total += os.path.getsize(path)
             clips.append({"file": os.path.join(key, name), "text": lines[name.removesuffix(".wav")].strip()})
-        manifest["speakers"].append({"key": key, "dataset": dataset, "role": role, "clips": clips})
+        entry = {"key": key, "dataset": dataset, "role": role, "clips": clips}
+        if role == "pool":
+            manifest.setdefault("pool", []).append(entry)
+        else:
+            manifest["speakers"].append(entry)
         print(f"{key}: {len(clips)} clips", flush=True)
     with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2)

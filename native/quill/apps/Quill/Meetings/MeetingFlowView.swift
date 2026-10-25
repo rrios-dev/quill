@@ -416,7 +416,10 @@ private struct AnalysisPane: View {
         // which would switch it back (measured: 610 → 431 → 321 → 610… until AppKit
         // aborted the window).
         .frame(minWidth: 0, maxWidth: .infinity)
-        .onGeometryChange(for: Bool.self) { $0.size.width < (compact ? 640 : 560) } action: { compact = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            let next = width < (compact ? 640 : 560)
+            if next != compact { compact = next }
+        }
     }
 
     @ViewBuilder private var result: some View {

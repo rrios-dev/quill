@@ -33,7 +33,9 @@ separately, so "you" and "the others" are never confused.
   when the meeting starts (Spanish, English, French, German, Italian, Portuguese).
 - **Every voice by name.** Voices are told apart on your Mac while the meeting goes on:
   name each one and give it a role (Product Owner, Tech Lead, Support…) as people speak,
-  and the names stay.
+  and the names stay. When two people who sound alike come out as one voice, right-click
+  a sentence, *Said by… → Someone else*, move a second one, and Quill offers the rest of
+  their sentences.
 - **Translated live** with Apple's on-device translation when the meeting is in another
   language than yours.
 - **A live panel** you can move, resize or fold into a recording dot.
@@ -104,7 +106,11 @@ example. A flagged result tells you why, and it is never applied without you see
 - Meetings: audio stays in memory and is never written to disk. Transcription, voice
   separation and translation run on your Mac; only the analysis goes to your model.
 - API keys live in the macOS Keychain.
+- Each sentence's voiceprint is kept with the meeting, so a voice can be split later; it
+  cannot be turned back into speech.
 - No account, no analytics, no telemetry, no server of our own. Release builds log no text.
+- Once a day Quill asks GitHub for the latest published version, to tell you when there
+  is a new one (switch it off in Settings → General). Nothing of yours is sent.
 - Password fields are never read.
 
 ## Requirements
@@ -115,7 +121,7 @@ optional.
 
 Meetings also ask for **System Audio Recording** (to hear the meeting app) and the
 **Microphone**. The first meeting in a language downloads the system's speech model for it;
-the first separation of voices downloads the diarization models (about 20 MB) of
+the first separation of voices downloads the diarization and voiceprint models of
 [FluidAudio](https://github.com/FluidInference/FluidAudio) (Apache 2.0), the one
 third-party library Quill uses, since macOS has no voice separation of its own.
 

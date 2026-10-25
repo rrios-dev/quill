@@ -94,6 +94,25 @@ enum Metrics {
         return result
     }
 
+    /// People who came out as one voice: each reference speaker goes with the voice that
+    /// holds most of their speech, and a voice that holds most of two or more people is a
+    /// merge. Returns each merged group, sorted.
+    static func merged(reference: [Turn], hypothesis: [Turn]) -> [[String]] {
+        var owner: [String: String] = [:]
+        for refSpeaker in Set(reference.map(\.speaker)) {
+            var shared: [String: Double] = [:]
+            for a in reference where a.speaker == refSpeaker {
+                for b in hypothesis {
+                    let overlap = min(a.end, b.end) - max(a.start, b.start)
+                    if overlap > 0 { shared[b.speaker, default: 0] += overlap }
+                }
+            }
+            if let voice = shared.max(by: { $0.value < $1.value })?.key { owner[refSpeaker] = voice }
+        }
+        let groups = Dictionary(grouping: owner.keys, by: { owner[$0]! }).values
+        return groups.filter { $0.count > 1 }.map { $0.sorted() }.sorted { $0[0] < $1[0] }
+    }
+
     struct Diarization: Codable, Equatable {
         var der: Double
         var missed: Double

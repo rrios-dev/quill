@@ -326,7 +326,7 @@
 "system.other" = "otro atajo del sistema";
 "about.privacy %@" = "Qué guarda %@";
 "about.privacy.local" = "Tus perfiles, ejemplos, muestras y ajustes se quedan en este Mac.";
-"about.privacy.network" = "Tu texto solo sale de este Mac cuando reescribes o pruebas un perfil con un modelo alojado, y solo a su proveedor.";
+"about.privacy.network" = "Tu texto solo sale de este Mac cuando reescribes o pruebas un perfil con un modelo alojado, y solo a su proveedor. Además, una vez al día pregunta a GitHub si hay una versión nueva, sin enviar nada tuyo.";
 "about.privacy.keys" = "Las claves de API se guardan en tu llavero.";
 "about.privacy.nothing" = "Sin analíticas, sin telemetría, sin historial de tus reescrituras.";
 "about.licences" = "Licencias";
@@ -459,6 +459,11 @@
 "meeting.transcript.only" = "solo sus intervenciones";
 "meeting.transcript.all" = "Ver todas las intervenciones";
 "meeting.transcript.none" = "Nada coincide.";
+"meeting.voice.saidBy" = "Lo dijo…";
+"meeting.voice.newPerson" = "Otra persona";
+"meeting.voice.proposal %lld %@" = "%lld frases más suenan como %@. ¿Se las paso?";
+"meeting.voice.proposal.accept" = "Pasárselas";
+"meeting.voice.proposal.dismiss" = "Ahora no";
 "role.builtin.productOwner" = "Product Owner";
 "role.builtin.productOwner.summary" = "Prioriza y decide el producto";
 "role.builtin.techLead" = "Tech Lead";
@@ -582,3 +587,16 @@
 "pane.history.help" = "Solo texto: transcripciones y síntesis. El audio nunca se guarda.";
 "pane.browsers" = "Navegadores (Meet y otras webs)";
 "focus.guidance.help" = "Se suman a las reglas del enfoque. Escríbelas como se las dirías a quien toma las actas.";
+
+/* Updates (J-07) */
+"menu.update %@ %@" = "Actualizar %1$@ a la %2$@…";
+"menu.update.badge %@ %@" = "%1$@: hay una versión nueva, la %2$@";
+"menu.update.skip" = "Omitir esta versión";
+"general.updates" = "Actualizaciones";
+"general.updates.auto" = "Buscar versiones nuevas automáticamente";
+"general.updates.now" = "Buscar ahora";
+"general.updates.upToDate" = "Tienes la última versión.";
+"general.updates.failed" = "No se pudo comprobar. Se volverá a intentar.";
+"general.updates.available %@" = "Hay una versión nueva: la %@.";
+"general.updates.download" = "Descargar";
+"general.updates.note" = "Una vez al día se pregunta a GitHub por la última versión publicada. No se envía nada tuyo.";

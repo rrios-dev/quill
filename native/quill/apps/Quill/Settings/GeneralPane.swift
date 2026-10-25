@@ -18,6 +18,16 @@ final class GeneralPaneModel {
     private(set) var shortcutProblem: String?
     private(set) var killSwitches = KillSwitches()
     private(set) var launchesAtLogin = false
+    /// Checking for a newer version (J-07).
+    private(set) var checksForUpdates = true
+    private var checkStatus: UpdateStatus = .idle
+    /// What the section says: the last "Check now", or what a background check found
+    /// while the pane was open.
+    var updateStatus: UpdateStatus {
+        if checkStatus == .idle, let version = updates?.available?.version { return .available(version) }
+        return checkStatus
+    }
+    enum UpdateStatus: Equatable { case idle, checking, upToDate, available(String), failed }
 
     private let settings: SettingsStore
     private let dataDirectory: URL
@@ -28,13 +38,19 @@ final class GeneralPaneModel {
     private let launchAtLogin: (enabled: () -> Bool, set: (Bool) -> Bool)
     /// After "Reset Quill": the app restarts with nothing.
     private let afterReset: () -> Void
+    private let updates: UpdateCheck?
+    private let checkUpdates: () async -> Void
+    private let downloadUpdate: () -> Void
     private let log = QuillLog(category: "general")
 
     init(settings: SettingsStore, dataDirectory: URL, credentials: any CredentialStore,
          systemShortcuts: SystemShortcuts = .live(),
          registerShortcut: @escaping (KeyCombination) -> String?,
          launchAtLogin: (enabled: () -> Bool, set: (Bool) -> Bool) = ({ LaunchAtLogin.isEnabled }, { LaunchAtLogin.set($0) }),
-         afterReset: @escaping () -> Void) {
+         afterReset: @escaping () -> Void,
+         updates: UpdateCheck? = nil,
+         checkUpdates: @escaping () async -> Void = {},
+         downloadUpdate: @escaping () -> Void = {}) {
         self.settings = settings
         self.dataDirectory = dataDirectory
         self.credentials = credentials
@@ -42,6 +58,9 @@ final class GeneralPaneModel {
         self.registerShortcut = registerShortcut
         self.launchAtLogin = launchAtLogin
         self.afterReset = afterReset
+        self.updates = updates
+        self.checkUpdates = checkUpdates
+        self.downloadUpdate = downloadUpdate
     }
 
     func reload() {
@@ -49,6 +68,7 @@ final class GeneralPaneModel {
         shortcut = current.shortcut.map(KeyCombination.init) ?? HotKeyController.defaultShortcut
         killSwitches = current.killSwitches
         launchesAtLogin = launchAtLogin.enabled()
+        checksForUpdates = updates?.isEnabled ?? false
         systemConflict = conflictCopy(for: shortcut)
     }
 
@@ -77,6 +97,26 @@ final class GeneralPaneModel {
             log.error("could not save the switch: \(error)")
         }
     }
+
+    var updatesAvailable: Bool { updates != nil }
+
+    func setChecksForUpdates(_ on: Bool) {
+        updates?.isEnabled = on
+        checksForUpdates = on
+    }
+
+    func checkForUpdatesNow() async {
+        guard let updates else { return }
+        checkStatus = .checking
+        await checkUpdates()
+        if let version = updates.available?.version {
+            checkStatus = .available(version)
+        } else {
+            checkStatus = updates.lastCheck.map { Date().timeIntervalSince($0) < 60 } == true ? .upToDate : .failed
+        }
+    }
+
+    func download() { downloadUpdate() }
 
     func setLaunchesAtLogin(_ on: Bool) {
         launchesAtLogin = launchAtLogin.set(on) ? on : launchAtLogin.enabled()
@@ -112,6 +152,28 @@ struct GeneralPane: View {
             Section {
                 Toggle(PickerCopy.string("general.launchAtLogin"), isOn: Binding(
                     get: { model.launchesAtLogin }, set: { model.setLaunchesAtLogin($0) }))
+            }
+            if model.updatesAvailable {
+                Section(PickerCopy.string("general.updates")) {
+                    Toggle(PickerCopy.string("general.updates.auto"), isOn: Binding(
+                        get: { model.checksForUpdates }, set: { model.setChecksForUpdates($0) }))
+                    HStack {
+                        Button(PickerCopy.string("general.updates.now")) { Task { await model.checkForUpdatesNow() } }
+                            .disabled(model.updateStatus == .checking)
+                        switch model.updateStatus {
+                        case .idle: EmptyView()
+                        case .checking: ProgressView().controlSize(.small)
+                        case .upToDate:
+                            Text(PickerCopy.string("general.updates.upToDate")).foregroundStyle(.secondary)
+                        case .failed:
+                            Text(PickerCopy.string("general.updates.failed")).foregroundStyle(.secondary)
+                        case .available(let version):
+                            Text(PickerCopy.string("general.updates.available \(version)"))
+                            Button(PickerCopy.string("general.updates.download")) { model.download() }
+                        }
+                    }
+                    Text(PickerCopy.string("general.updates.note")).font(.caption).foregroundStyle(.secondary)
+                }
             }
             Section(PickerCopy.string("general.capture")) {
                 Toggle(PickerCopy.string("general.copyFallback"), isOn: Binding(

@@ -210,7 +210,10 @@ struct MeetingHistoryView: View {
         // Its column decides its width, never its content (see AnalysisPane), and the
         // switch has hysteresis so it cannot flicker at the boundary.
         .frame(minWidth: 0, maxWidth: .infinity)
-        .onGeometryChange(for: Bool.self) { $0.size.width < (narrow ? 820 : 760) } action: { narrow = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            let next = width < (narrow ? 820 : 760)
+            if next != narrow { narrow = next }
+        }
     }
 
     @ViewBuilder private func synthesisList(_ meeting: MeetingRecord) -> some View {

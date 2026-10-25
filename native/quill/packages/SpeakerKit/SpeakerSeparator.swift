@@ -15,14 +15,25 @@ public final class SpeakerSeparator: @unchecked Sendable {
     private let manager: OfflineDiarizerManager
     private let modelsDirectory: URL
 
-    /// - Parameter expectedSpeakers: when the user knows how many others were in the call,
-    ///   telling the clustering removes its most common mistake (merging or splitting
-    ///   voices). Nil lets it decide.
-    public init(modelsDirectory: URL, expectedSpeakers: Int? = nil) {
+    /// - Parameters:
+    ///   - expectedSpeakers: when the user knows how many others were in the call,
+    ///     telling the clustering removes its most common mistake (merging or splitting
+    ///     voices). Nil lets it decide.
+    ///   - mergeDistance: the clustering's cut, the distance under which two voiceprints
+    ///     are one person (FluidAudio's `clustering.threshold`; larger merges more).
+    ///     Nil keeps the library's default.
+    ///   - tuning: experiment-only overrides of VBx's `warmStartFa` / `warmStartFb`, for the bench.
+    public init(modelsDirectory: URL, expectedSpeakers: Int? = nil, mergeDistance: Double? = nil,
+                tuning: (fa: Double?, fb: Double?) = (nil, nil)) {
         var config = OfflineDiarizerConfig.default
         if let expectedSpeakers {
             config.clustering.numSpeakers = expectedSpeakers
         }
+        if let mergeDistance {
+            config.clustering.threshold = mergeDistance
+        }
+        if let fa = tuning.fa { config.clustering.warmStartFa = fa }
+        if let fb = tuning.fb { config.clustering.warmStartFb = fb }
         manager = OfflineDiarizerManager(config: config)
         self.modelsDirectory = modelsDirectory
     }

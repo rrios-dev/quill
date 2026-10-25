@@ -15,6 +15,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let log = QuillLog(category: "app")
     /// Meetings (MEETINGS.md §6). Nil if its data folder cannot be created.
     private(set) var meetings: MeetingsCoordinator?
+    /// "A newer version exists" (J-07): asked of the public repository once a day.
+    let updates = UpdateCheck(repository: "rrios-dev/quill", currentVersion: AppDelegate.runningVersion)
+
+    private static var runningVersion: String {
+        #if DEBUG
+        if let version = DebugHooks.updateCheckVersion, version != "1" { return version }
+        #endif
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    }
+    private var updateTimer: Timer?
     /// The provider line's evaluation for the menu that is open, cancelled when it closes.
     private var statusTask: Task<Void, Never>?
     #if DEBUG
@@ -49,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             log.error("meetings unavailable: \(error)")
         }
         showOnboardingIfNeeded()
+        startUpdateChecks()
         services.onText = { [weak self] text in self?.rewriteFromServices(text) }
         NSApplication.shared.servicesProvider = services
         NSUpdateDynamicServices()
@@ -65,6 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         listenForMenuDump()
         if DebugHooks.dumpsAccessibility || DebugHooks.snapshotsPicker { Task { await dumpAccessibility() } }
         if let target = DebugHooks.listenTarget { Task { await ListenProbe.run(target: target) } }
+        if let pane = DebugHooks.openSettingsPane.flatMap(SettingsPane.init(rawValue:)) { openSettings(pane) }
+        if let id = DebugHooks.openMeeting, let meetings {
+            meetings.openMeeting(id, step: .synthesis)
+            if let model = meetings.debugMeetingModel(id), let first = DebugHooks.openMeetingMoves.first {
+                let target = model.record.transcript.newVoiceLabel
+                model.move(sentence: first, to: nil)
+                for index in DebugHooks.openMeetingMoves.dropFirst() { model.move(sentence: index, to: target) }
+            }
+        }
         if let transcript = DebugHooks.snapshotsMeetings, let meetings {
             let openSettings: () -> Void = { [weak self] in self?.openSettings(.meetings) }
             let settingsWindow: () -> NSWindow? = { [weak self] in self?.settingsWindow?.shownWindow }
@@ -430,6 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addPermissionItems(to: menu)
         addProfileItems(to: menu)
         addMeetingItems(to: menu)
+        addUpdateItems(to: menu)
 
         menu.addItem(.separator())
         let status = Self.note(String(localized: "menu.status.checking", bundle: .localized))
@@ -495,6 +516,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         history.target = self
         menu.addItem(history)
         if let error = meetings.lastError { menu.addItem(Self.note(error)) }
+    }
+
+    // MARK: Updates
+
+    /// At launch and every few hours; `UpdateCheck` itself asks at most once a day.
+    private func startUpdateChecks() {
+        #if DEBUG
+        guard DebugHooks.updateCheckVersion != nil else { return }
+        #endif
+        Task { await checkForUpdates() }
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.checkForUpdates() }
+        }
+    }
+
+    func checkForUpdates(now force: Bool = false) async {
+        if force { await updates.checkNow() } else { await updates.checkIfDue() }
+        showUpdateBadge()
+    }
+
+    func showUpdateBadge() {
+        statusItem?.button?.image = BrandMark.menuBarImage(
+            accessibilityDescription: updates.available.map {
+                String(localized: "menu.update.badge \(QuillSupport.productName) \($0.version)", bundle: .localized)
+            } ?? QuillSupport.productName,
+            badged: updates.available != nil)
+    }
+
+    private func addUpdateItems(to menu: NSMenu) {
+        guard let update = updates.available else { return }
+        menu.addItem(.separator())
+        let item = NSMenuItem(
+            title: String(localized: "menu.update \(QuillSupport.productName) \(update.version)", bundle: .localized),
+            action: #selector(downloadUpdate), keyEquivalent: "")
+        item.target = self
+        item.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
+        menu.addItem(item)
+        let skip = NSMenuItem(title: String(localized: "menu.update.skip", bundle: .localized),
+                              action: #selector(skipUpdate), keyEquivalent: "")
+        skip.target = self
+        skip.indentationLevel = 1
+        menu.addItem(skip)
+    }
+
+    /// The disk image, or the release page when the release has none.
+    @objc func downloadUpdate() {
+        guard let update = updates.available else { return }
+        NSWorkspace.shared.open(update.download ?? update.page)
+    }
+
+    @objc private func skipUpdate() {
+        updates.skip()
+        showUpdateBadge()
     }
 
     @objc private func startMeeting() { meetings?.startFromMenu() }
@@ -609,7 +683,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 hotKey.register(combination) { [weak self] in self?.rewriteSelection() }
                 return hotKey.problem
             },
-            afterReset: { PermissionWatcher.restart() })
+            afterReset: { PermissionWatcher.restart() },
+            updates: updates,
+            checkUpdates: { [weak self] in await self?.checkForUpdates(now: true) },
+            downloadUpdate: { [weak self] in self?.downloadUpdate() })
     }
 
     private func makeProvidersModel(_ environment: AppEnvironment) -> ProvidersPaneModel {

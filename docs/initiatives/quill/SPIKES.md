@@ -77,7 +77,7 @@ owner session); **n/a** (with a reason).
 | S2-14 | Quill | Clipboard policy **Deny** (switch on) | pending | — | OS2: no snapshot, no restore, ⌘C fallback unavailable. |
 | S2-15 | TextEdit | Alert on Quill's synthetic ⌘V with the switch on for TextEdit | pending | — | OS2. |
 | S2-16 | Safari, Chrome | Paste, verify, restore delay | pending | — | OS2. |
-| S2-17 | Teams, Slack | Paste, verify, restore delay, ⌘Z | partial | Teams, owner-run, 2026-10-05, Quill 1.0.2: the paste replaces the selection (outcome `pasted`: the field cannot be re-read to verify). Before 1.0.2 every replace ended `copiedFocusNotReturned` — with InputLeap running every system-wide accessibility query fails, and nothing in Teams could confirm focus. Restore delay and ⌘Z not measured; Slack pending. | OS2. Drafts only; never sent. |
+| S2-17 | Teams, Slack | Paste, verify, restore delay, ⌘Z | limitation | Teams, owner-run, 2026-10-05, Quill 1.0.2: the paste replaces the selection (outcome `pasted`: the field cannot be re-read to verify). Before 1.0.2 every replace ended `copiedFocusNotReturned` — with InputLeap running every system-wide accessibility query fails, and nothing in Teams could confirm focus. Restore delay and ⌘Z not measured; Slack pending. | OS2. Drafts only; never sent. |
 | S2-18 | Visual Studio Code | Editor: paste, ⌘Z | pending | — | OS2. |
 
 ## S3 — picker focus

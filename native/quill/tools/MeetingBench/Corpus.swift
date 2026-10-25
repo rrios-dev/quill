@@ -148,36 +148,92 @@ enum Composer {
         struct Speaker: Decodable {
             struct Clip: Decodable { var file: String; var text: String }
             var key: String
+            var dataset: String?
             var role: String
             var clips: [Clip]
         }
         var speakers: [Speaker]
+        /// The voices C4 and C5 are drawn from.
+        var pool: [Speaker]?
+    }
+
+    /// A clip trimmed to its speech and brought to the meeting's loudness.
+    struct Clip {
+        var samples: [Float]
+        var text: String
+        var regions: [[Double]]
+    }
+
+    /// A composed meeting: each channel's audio and the reference segments.
+    struct Meeting {
+        var tracks: [String: [Float]]
+        var segments: [Reference.Segment]
+        var length: Int { tracks.values.map(\.count).max() ?? 0 }
     }
 
     static let quietSpeaker = "pem_01208"
 
-    static func compose(cache: URL) throws -> [URL] {
-        let root = cache.appendingPathComponent("openslr")
-        let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: root.appendingPathComponent("manifest.json")))
-        var rng = SplitMix64(state: 20_261_008)
+    static func manifest(cache: URL) throws -> Manifest {
+        try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: cache.appendingPathComponent("openslr/manifest.json")))
+    }
 
-        // Every clip trimmed to its speech and brought to the same loudness, so levels are
-        // a choice of the composition (the quiet speaker), not of each volunteer's microphone.
-        var queues: [String: [(samples: [Float], text: String, regions: [[Double]])]] = [:]
-        var roles: [String: String] = [:]
+    /// Every clip trimmed to its speech and brought to the same loudness, so levels are
+    /// a choice of the composition (the quiet speaker), not of each volunteer's microphone.
+    static func clips(of speaker: Manifest.Speaker, cache: URL, range: Range<Int>? = nil, gain: Float = 1) throws -> [Clip] {
+        let root = cache.appendingPathComponent("openslr")
+        let chosen = range.map { Array(speaker.clips[$0.clamped(to: speaker.clips.indices)]) } ?? speaker.clips
+        return try chosen.map { clip in
+            let full = try Audio.load(root.appendingPathComponent(clip.file))
+            var samples = Array(full[Audio.speechSpan(full)])
+            let level = 0.08 / max(Audio.rms(samples[...]), 1e-4) * gain
+            for index in samples.indices { samples[index] *= level }
+            return Clip(samples: samples, text: clip.text, regions: Audio.voicedRegions(samples))
+        }
+    }
+
+    static func compose(cache: URL) throws -> [URL] {
+        let manifest = try manifest(cache: cache)
+        var rng = SplitMix64(state: 20_261_008)
+        var queues: [String: [Clip]] = [:]
         for speaker in manifest.speakers {
-            roles[speaker.key] = speaker.role
-            queues[speaker.key] = try speaker.clips.map { clip in
-                let full = try Audio.load(root.appendingPathComponent(clip.file))
-                var samples = Array(full[Audio.speechSpan(full)])
-                let gain = 0.08 / max(Audio.rms(samples[...]), 1e-4) * (speaker.key == quietSpeaker ? 0.3 : 1)
-                for index in samples.indices { samples[index] *= gain }
-                return (samples, clip.text, Audio.voicedRegions(samples))
-            }
+            queues[speaker.key] = try clips(of: speaker, cache: cache, gain: speaker.key == quietSpeaker ? 0.3 : 1)
         }
         let others = manifest.speakers.filter { $0.role == "others" }.map(\.key)
         let me = manifest.speakers.first { $0.role == "me" }?.key
+        let meeting = compose(others: others, me: me, queues: queues, rng: &rng)
+        let length = meeting.length
 
+        // Background noise at 15 dB below the speech: low-passed random noise, like a fan
+        // or a room, the same on every run.
+        let speech = meeting.segments.filter { $0.channel == "others" }.flatMap { segment in
+            meeting.tracks["others"]![Int(segment.start * Audio.sampleRate)..<Int(segment.end * Audio.sampleRate)]
+        }
+        let speechLevel = Audio.rms(speech[...])
+        var noise = [Float](repeating: 0, count: length)
+        var state: Float = 0
+        for index in noise.indices {
+            state = 0.95 * state + Float.random(in: -1...1, using: &rng)
+            noise[index] = state
+        }
+        let noiseGain = speechLevel / pow(10, 15 / 20) / max(Audio.rms(noise[...]), 1e-6)
+        let noisy = zip(meeting.tracks["others"]!, noise).map { $0 + $1 * noiseGain }
+
+        var written: [URL] = []
+        for (name, othersAudio, description) in [
+            ("c2-es", meeting.tracks["others"]!, "Five real Spanish voices composed into a meeting, plus me"),
+            ("c2-es-noise", noisy, "C2 with background noise at 15 dB SNR"),
+        ] {
+            var tracks = meeting.tracks
+            tracks["others"] = othersAudio
+            written.append(try write(name: name, description: description, tracks: tracks, segments: meeting.segments, cache: cache))
+        }
+        return written
+    }
+
+    /// Turns of one or two sentences between the people in `others`, pauses of varying
+    /// length, interruptions, and "me" taking about one turn in seven.
+    static func compose(others: [String], me: String?, queues: [String: [Clip]], rng: inout SplitMix64) -> Meeting {
+        var queues = queues
         var segments: [Reference.Segment] = []
         var tracks: [String: [Float]] = ["others": [], "me": []]
         func place(_ samples: [Float], at start: Double, channel: String) {
@@ -203,10 +259,10 @@ enum Composer {
             } else {
                 break
             }
-            let channel = roles[speaker] == "me" ? "me" : "others"
+            let channel = speaker == me ? "me" : "others"
             var start = clock + Double.random(in: 0.25..<1.2, using: &rng)
             // An interruption: the next person starts before the last one finished.
-            if let previous, channel == "others", roles[previous.speaker] == "others",
+            if let previous, channel == "others", previous.speaker != me,
                Double.random(in: 0..<1, using: &rng) < 0.12 {
                 start = max(previous.start + 0.5, previous.end - Double.random(in: 0.4..<1.2, using: &rng))
             }
@@ -228,40 +284,26 @@ enum Composer {
         for channel in ["others", "me"] {
             tracks[channel]!.append(contentsOf: repeatElement(0, count: length - tracks[channel]!.count))
         }
+        return Meeting(tracks: tracks, segments: segments)
+    }
 
-        // Background noise at 15 dB below the speech: low-passed random noise, like a fan
-        // or a room, the same on every run.
-        let speech = segments.filter { $0.channel == "others" }.flatMap { segment in
-            tracks["others"]![Int(segment.start * Audio.sampleRate)..<Int(segment.end * Audio.sampleRate)]
+    /// Writes a case directory: the channels that carry audio and the reference.
+    static func write(name: String, description: String, tracks: [String: [Float]], segments: [Reference.Segment],
+                      cache: URL) throws -> URL {
+        let directory = cache.appendingPathComponent("cases/\(name)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var audio: [String: String] = [:]
+        for (channel, samples) in tracks where segments.contains(where: { $0.channel == channel }) {
+            try Audio.write(samples, to: directory.appendingPathComponent("\(channel).wav"))
+            audio[channel] = "\(channel).wav"
         }
-        let speechLevel = Audio.rms(speech[...])
-        var noise = [Float](repeating: 0, count: length)
-        var state: Float = 0
-        for index in noise.indices {
-            state = 0.95 * state + Float.random(in: -1...1, using: &rng)
-            noise[index] = state
-        }
-        let noiseGain = speechLevel / pow(10, 15 / 20) / max(Audio.rms(noise[...]), 1e-6)
-        let noisy = zip(tracks["others"]!, noise).map { $0 + $1 * noiseGain }
-
-        let duration = Double(length) / Audio.sampleRate
-        var written: [URL] = []
-        for (name, othersAudio, description) in [
-            ("c2-es", tracks["others"]!, "Five real Spanish voices composed into a meeting, plus me"),
-            ("c2-es-noise", noisy, "C2 with background noise at 15 dB SNR"),
-        ] {
-            let directory = cache.appendingPathComponent("cases/\(name)")
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try Audio.write(othersAudio, to: directory.appendingPathComponent("others.wav"))
-            try Audio.write(tracks["me"]!, to: directory.appendingPathComponent("me.wav"))
-            let reference = Reference(name: name, locale: "es_ES", duration: duration, description: description,
-                                      audio: ["others": "others.wav", "me": "me.wav"], segments: segments)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(reference).write(to: directory.appendingPathComponent("reference.json"))
-            written.append(directory)
-        }
-        return written
+        let duration = Double(tracks.values.map(\.count).max() ?? 0) / Audio.sampleRate
+        let reference = Reference(name: name, locale: "es_ES", duration: duration, description: description,
+                                  audio: audio, segments: segments)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(reference).write(to: directory.appendingPathComponent("reference.json"))
+        return directory
     }
 }
 

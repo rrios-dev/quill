@@ -58,7 +58,8 @@ public final class MicrophoneCapture: @unchecked Sendable {
         observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
         ) { [weak self] _ in
-            self?.queue.async { self?.restart() }
+            // `restart` hops onto the capture queue itself.
+            self?.restart()
         }
         try queue.sync { try configureAndStart() }
     }

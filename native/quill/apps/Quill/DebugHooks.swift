@@ -43,6 +43,24 @@ enum DebugHooks {
     /// for `screencapture -l`, then quit. Run with an empty `QUILL_DATA_DIR`.
     static var snapshotsMeetings: String? { value("QUILL_SNAPSHOT_MEETINGS") }
 
+    /// `QUILL_OPEN_MEETING=<uuid>` — open that meeting's window at launch, for checking a
+    /// meeting surface by hand or with screen tools.
+    static var openMeeting: UUID? { value("QUILL_OPEN_MEETING").flatMap(UUID.init(uuidString:)) }
+
+    /// `QUILL_OPEN_MEETING_MOVES=<i>,<j>…` — with `QUILL_OPEN_MEETING`, give those sentences
+    /// to someone else as "Said by… → Someone else" would: the first to a new voice, the
+    /// rest to the same one.
+    static var openMeetingMoves: [Int] {
+        value("QUILL_OPEN_MEETING_MOVES")?.split(separator: ",").compactMap { Int($0) } ?? []
+    }
+
+    /// `QUILL_CHECK_UPDATES=<version>` — debug builds do not ask GitHub for updates unless
+    /// this is set; the value stands for the running version ("1" keeps the bundle's), so
+    /// an older one sees the published release as new. `QUILL_OPEN_SETTINGS=general` opens
+    /// that Settings pane at launch.
+    static var updateCheckVersion: String? { value("QUILL_CHECK_UPDATES") }
+    static var openSettingsPane: String? { value("QUILL_OPEN_SETTINGS") }
+
     /// `QUILL_SUPPRESS_PROMPTS=1` — never ask the system for a permission prompt.
     static var suppressesPrompts: Bool { value("QUILL_SUPPRESS_PROMPTS") != nil }
 

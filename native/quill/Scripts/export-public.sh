@@ -38,6 +38,8 @@ copy_tracked native/quill
 copy_tracked native/packages/AppCore
 copy_tracked native/packages/GlassUI
 copy_tracked docs/initiatives/quill
+# The owner's decision journal is how the work is steered, not what the code cites.
+rm -f "$DEST/docs/initiatives/quill/JOURNAL.md"
 for script in check-localization.sh untranslated.py unknown-keys.py untranslated-allowed.txt; do
   copy_tracked "native/Scripts/$script"
 done

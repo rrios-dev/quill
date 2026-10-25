@@ -480,6 +480,13 @@ final class MeetingsCoordinator {
                 // Labelled to continue the live passes, so names given during the meeting stay.
                 let turns = labeler.label(SpeakerTurn.absorbingMinorVoices(try await separator.turns(for: samples)))
                 transcript = transcript.assigningSpeakers(turns, renumbering: false)
+                // Each sentence's voiceprint, while the audio is still here: what lets the
+                // user split a voice that holds two people (VOICES.md S1).
+                let embedder = SpeakerEmbedder(
+                    modelsDirectory: directory.appendingPathComponent("models/streaming", isDirectory: true))
+                if (try? await embedder.prepare()) != nil {
+                    transcript = embedder.measuringSegments(of: transcript, samples: samples)
+                }
                 for voice in liveVoices where !voice.name.isEmpty && transcript.segments.contains(where: { $0.speaker == voice.label }) {
                     transcript.names[voice.label] = voice.name
                     if let person = try? store.remember(name: voice.name, roleID: voice.roleID, at: started) {

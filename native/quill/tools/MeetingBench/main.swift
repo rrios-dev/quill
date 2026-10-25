@@ -5,7 +5,8 @@ import SpeakerKit
 // meeting-bench: transcription and voice separation measured on meetings with a known
 // answer (docs/initiatives/quill/TESTING-MEETINGS.md, tier T2).
 //
-//   meeting-bench prepare            compose C2 from the OpenSLR clips, prepare C3 (AMI)
+//   meeting-bench prepare            compose C2 from the OpenSLR clips, prepare C3 (AMI),
+//                                    compose C4 from the most alike voices of the pool
 //   meeting-bench run [case…]        run cases, print and save their reports
 //   meeting-bench run --gate [case…] also fail when a case is worse than gate.json
 //
@@ -40,6 +41,8 @@ struct Gate: Decodable {
         var attribution: Double?
         var timing: Double?
         var speakerCount: Bool?
+        /// Most people allowed to come out as one voice, summed over merged groups.
+        var merged: Int?
     }
     var cases: [String: Limits]
 }
@@ -64,6 +67,9 @@ func check(_ report: Pipeline.Report, against limits: Gate.Limits) -> [String] {
     if limits.speakerCount == true, let d = report.diarization, d.hypothesisSpeakers != d.referenceSpeakers {
         failures.append("found \(d.hypothesisSpeakers) voices, there were \(d.referenceSpeakers)")
     }
+    if let limit = limits.merged, let groups = report.merged, groups.map(\.count).reduce(0, +) > limit {
+        failures.append("\(groups.map(\.count).reduce(0, +)) people sharing a voice > \(limit)")
+    }
     if limits.diarizationRequired, report.diarization == nil {
         failures.append("no diarization")
     }
@@ -79,6 +85,7 @@ do {
     case "prepare":
         for directory in try Composer.compose(cache: cache) { print("composed \(directory.lastPathComponent)") }
         print("prepared \(try AMICase.prepare(cache: cache).lastPathComponent)")
+        print("composed \(try await SimilarVoices.compose(cache: cache, models: try modelsDirectory()).lastPathComponent)")
     case "run":
         let gating = arguments.contains("--gate")
         var names = Array(arguments.dropFirst().filter { !$0.hasPrefix("--") })
@@ -104,7 +111,7 @@ do {
             ▸ \(name) — \(Int(report.audioSeconds)) s of audio in \(Int(report.processingSeconds)) s
               others WER \(percent(report.othersWER))  me WER \(percent(report.meWER))
               DER \(percent(report.diarization?.der)) (missed \(percent(report.diarization?.missed)), false alarm \(percent(report.diarization?.falseAlarm)), confusion \(percent(report.diarization?.confusion)))
-              voices found \(report.diarization.map { "\($0.hypothesisSpeakers) of \($0.referenceSpeakers)" } ?? "—")
+              voices found \(report.diarization.map { "\($0.hypothesisSpeakers) of \($0.referenceSpeakers)" } ?? "—")  merged \(report.merged.map { $0.isEmpty ? "none" : $0.map { $0.joined(separator: "+") }.joined(separator: ", ") } ?? "—")
               words to the right person \(percent(report.attribution))  words at the right moment \(percent(report.timing))
             """)
             for note in report.notes { print("  note: \(note)") }
@@ -117,6 +124,66 @@ do {
             }
         }
         exit(failed ? 1 : 0)
+    case "separability":
+        // Can two voices be told apart sentence by sentence (VOICES.md S1)?
+        guard arguments.count > 2 else { throw BenchError("separability <speaker> <speaker>") }
+        try await SimilarVoices.separability(cache: cache, models: try modelsDirectory(), a: arguments[1], b: arguments[2])
+    case "split":
+        // S1 end to end: the case as Quill leaves it, each sentence measured, then the user
+        // moving k sentences of the hidden person out of a merged voice and accepting
+        // what Quill proposes. Scored on the merged voice's sentences: share that end up
+        // with the right person.
+        guard arguments.count > 1 else { throw BenchError("split <case>") }
+        let directory = cache.appendingPathComponent("cases/\(arguments[1])")
+        let reference = try JSONDecoder().decode(Reference.self, from: Data(contentsOf: directory.appendingPathComponent("reference.json")))
+        let (_, transcript, _) = try await Pipeline.run(caseDirectory: directory, models: try modelsDirectory())
+        let embedder = SpeakerEmbedder(modelsDirectory: try modelsDirectory().appendingPathComponent("streaming"))
+        try await embedder.prepare()
+        let samples = try Audio.load(directory.appendingPathComponent("others.wav"))
+        let began = Date()
+        let measured = embedder.measuringSegments(of: transcript, samples: samples)
+        let others = measured.segments.indices.filter { measured.segments[$0].channel == .others }
+        // `--export <file>`: the measured transcript, for opening it in a debug build.
+        if let flag = arguments.firstIndex(of: "--export"), arguments.indices.contains(flag + 1) {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .millisecondsSince1970
+            try encoder.encode(measured).write(to: URL(fileURLWithPath: arguments[flag + 1]))
+        }
+        print("measured \(others.filter { measured.segments[$0].voiceprint != nil }.count) of \(others.count) sentences in \(String(format: "%.1f", Date().timeIntervalSince(began))) s")
+        let refTurns = reference.segments(of: "others").flatMap { segment in
+            segment.spans.map { Metrics.Turn(speaker: segment.speaker, start: $0.start, end: $0.end) }
+        }
+        func truth(_ segment: TranscriptSegment) -> String? {
+            var seconds: [String: Double] = [:]
+            for turn in refTurns {
+                let overlap = min(turn.end, segment.end) - max(turn.start, segment.start)
+                if overlap > 0 { seconds[turn.speaker, default: 0] += overlap }
+            }
+            return seconds.max { $0.value < $1.value }?.key
+        }
+        // A merged voice: one label whose sentences belong to two people.
+        for label in Set(others.compactMap { measured.segments[$0].speaker }).sorted() {
+            let mine = others.filter { measured.segments[$0].speaker == label && measured.segments[$0].voiceprint != nil }
+            var counts: [String: Int] = [:]
+            for index in mine { if let who = truth(measured.segments[index]) { counts[who, default: 0] += 1 } }
+            let people = counts.sorted { $0.value > $1.value }
+            guard people.count >= 2, people[1].value >= 3 else { continue }
+            let (kept, hidden) = (people[0].key, people[1].key)
+            print("voice \(label): \(people.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+            for k in [1, 2, 3] {
+                var corrected = measured
+                let marks = mine.filter { truth(measured.segments[$0]) == hidden }.prefix(k)
+                let newLabel = corrected.newVoiceLabel
+                corrected.move(marks, to: newLabel)
+                corrected.move(corrected.soundingLike(newLabel, from: label), to: newLabel)
+                let rest = mine.filter { !marks.contains($0) }
+                let right = rest.filter {
+                    let who = truth(measured.segments[$0])
+                    return (corrected.segments[$0].speaker == newLabel) == (who == hidden) && (who == hidden || who == kept)
+                }.count
+                print("  \(k) marked: \(percent(Double(right) / Double(max(rest.count, 1)))) of the other \(rest.count) sentences with the right person")
+            }
+        }
     case "incremental":
         // Live naming: diarization passes over what was heard so far, every two minutes,
         // labelled by SpeakerLabeler; then the final pass. Scored as the share of each

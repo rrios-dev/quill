@@ -21,6 +21,17 @@ struct MetricsTests {
         #expect(Metrics.wer(Metrics.align(reference, []), referenceCount: 5) == 1)
     }
 
+    @Test("two people whose speech went mostly to one voice are a merge; a voice per person is none")
+    func merged() {
+        let reference = [Metrics.Turn(speaker: "ana", start: 0, end: 10), .init(speaker: "eva", start: 10, end: 20),
+                         .init(speaker: "luis", start: 20, end: 30)]
+        let oneForTwo = [Metrics.Turn(speaker: "S1", start: 0, end: 19), .init(speaker: "S2", start: 19, end: 30)]
+        #expect(Metrics.merged(reference: reference, hypothesis: oneForTwo) == [["ana", "eva"]])
+        let separate = [Metrics.Turn(speaker: "S1", start: 0, end: 10), .init(speaker: "S2", start: 10, end: 20),
+                        .init(speaker: "S3", start: 20, end: 30)]
+        #expect(Metrics.merged(reference: reference, hypothesis: separate).isEmpty)
+    }
+
     @Test("speakers are mapped one to one by the time they share, whatever their labels")
     func mapping() {
         let reference = [Metrics.Turn(speaker: "lucia", start: 0, end: 10), .init(speaker: "marta", start: 10, end: 20)]

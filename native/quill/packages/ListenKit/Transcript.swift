@@ -35,6 +35,10 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
     public var speaker: String?
     /// Word timings, when the model gave them. Empty after diarization has used them.
     public var words: [TimedWord]
+    /// What this stretch of voice sounds like, measured when the meeting ends: what lets
+    /// the user split one voice into two people (`VoiceSplit`). Nil for `me`, for
+    /// segments too short to measure and for meetings saved before it was kept.
+    public var voiceprint: Voiceprint?
 
     public init(
         channel: Channel,
@@ -42,7 +46,8 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
         end: Double,
         text: String,
         speaker: String? = nil,
-        words: [TimedWord] = []
+        words: [TimedWord] = [],
+        voiceprint: Voiceprint? = nil
     ) {
         self.channel = channel
         self.start = start
@@ -50,6 +55,31 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
         self.text = text
         self.speaker = speaker
         self.words = words
+        self.voiceprint = voiceprint
+    }
+}
+
+/// A speaker embedding: a direction that voices of the same person share. Stored as
+/// base64 of its 32-bit floats, a quarter of the size of a JSON array of numbers.
+/// Never audio: it cannot be turned back into speech.
+public struct Voiceprint: Codable, Sendable, Hashable {
+    public var values: [Float]
+
+    public init(_ values: [Float]) {
+        self.values = values
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let encoded = try decoder.singleValueContainer().decode(String.self)
+        guard let data = Data(base64Encoded: encoded), data.count % MemoryLayout<Float>.size == 0 else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "not a voiceprint"))
+        }
+        values = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(values.withUnsafeBufferPointer { Data(buffer: $0) }.base64EncodedString())
     }
 }
 
