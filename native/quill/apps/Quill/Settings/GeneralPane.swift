@@ -39,6 +39,7 @@ final class GeneralPaneModel {
     /// After "Reset Quill": the app restarts with nothing.
     private let afterReset: () -> Void
     private let updates: UpdateCheck?
+    let usage: UsageReport?
     private let checkUpdates: () async -> Void
     private let downloadUpdate: () -> Void
     private let log = QuillLog(category: "general")
@@ -49,6 +50,7 @@ final class GeneralPaneModel {
          launchAtLogin: (enabled: () -> Bool, set: (Bool) -> Bool) = ({ LaunchAtLogin.isEnabled }, { LaunchAtLogin.set($0) }),
          afterReset: @escaping () -> Void,
          updates: UpdateCheck? = nil,
+         usage: UsageReport? = nil,
          checkUpdates: @escaping () async -> Void = {},
          downloadUpdate: @escaping () -> Void = {}) {
         self.settings = settings
@@ -59,6 +61,7 @@ final class GeneralPaneModel {
         self.launchAtLogin = launchAtLogin
         self.afterReset = afterReset
         self.updates = updates
+        self.usage = usage
         self.checkUpdates = checkUpdates
         self.downloadUpdate = downloadUpdate
     }
@@ -173,6 +176,19 @@ struct GeneralPane: View {
                         }
                     }
                     Text(PickerCopy.string("general.updates.note")).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let usage = model.usage {
+                Section(PickerCopy.string("usage.section")) {
+                    Toggle(PickerCopy.string("usage.toggle"), isOn: Binding(
+                        get: { usage.isEnabled }, set: { usage.setConsent($0) }))
+                    Text(PickerCopy.string("usage.note")).font(.caption).foregroundStyle(.secondary)
+                    if usage.isEnabled {
+                        let pending = usage.preview()
+                        Text(pending.isEmpty ? PickerCopy.string("usage.pending.none")
+                             : PickerCopy.string("usage.pending \(pending.count)"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
             Section(PickerCopy.string("general.capture")) {

@@ -75,6 +75,14 @@ public enum AudioProcesses {
         return object == kAudioObjectUnknown ? nil : object
     }
 
+    /// The input devices a process is recording from right now: the microphone the
+    /// meeting app picked, which need not be the system's default (a webcam's microphone
+    /// across the desk is the default on the owner's Mac; the call uses the headset).
+    public static func inputDevices(of process: AudioObjectID) -> [AudioObjectID] {
+        (try? CoreAudioProperty.array(of: process, selector: kAudioProcessPropertyDevices,
+                                      scope: kAudioObjectPropertyScopeInput)) ?? []
+    }
+
     /// Processes whose bundle identifier starts with any of `prefixes`: an app and its
     /// helpers (`com.microsoft.teams2`, `com.microsoft.teams2.helper…`).
     public static func matching(bundlePrefixes prefixes: [String]) throws -> [AudioProcess] {
@@ -87,10 +95,11 @@ public enum AudioProcesses {
 
 /// Typed reads of Core Audio properties.
 enum CoreAudioProperty {
-    static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+    static func address(_ selector: AudioObjectPropertySelector,
+                        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(
             mSelector: selector,
-            mScope: kAudioObjectPropertyScopeGlobal,
+            mScope: scope,
             mElement: kAudioObjectPropertyElementMain
         )
     }
@@ -105,8 +114,9 @@ enum CoreAudioProperty {
         return pointer.pointee
     }
 
-    static func array<T>(of object: AudioObjectID, selector: AudioObjectPropertySelector) throws -> [T] {
-        var address = address(selector)
+    static func array<T>(of object: AudioObjectID, selector: AudioObjectPropertySelector,
+                         scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) throws -> [T] {
+        var address = address(selector, scope: scope)
         var size: UInt32 = 0
         try CoreAudioError.check(
             AudioObjectGetPropertyDataSize(object, &address, 0, nil, &size),

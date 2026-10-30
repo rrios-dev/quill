@@ -193,6 +193,16 @@ struct LiveView: View {
                     .background(.tint.opacity(0.15), in: .capsule)
                     .foregroundStyle(.tint)
             }
+            if coordinator.includesMicrophone {
+                Button(action: coordinator.toggleMicrophone) {
+                    Image(systemName: coordinator.isMicrophoneMutedInQuill ? "mic.slash.fill" : "mic.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(coordinator.microphoneMuted == nil ? Color.primary : Color.orange)
+                }
+                .buttonStyle(.borderless)
+                .help(MeetingCopy.t(coordinator.isMicrophoneMutedInQuill ? "live.mic.unmute" : "live.mic.mute"))
+                .accessibilityLabel(MeetingCopy.t(coordinator.isMicrophoneMutedInQuill ? "live.mic.unmute" : "live.mic.mute"))
+            }
             Button(action: collapse) {
                 Image(systemName: "smallcircle.filled.circle")
                     .font(.system(size: 15))
@@ -202,6 +212,15 @@ struct LiveView: View {
             .accessibilityLabel(MeetingCopy.t("live.collapse"))
         }
         .padding(Metrics.Inset.panel)
+    }
+
+    /// Why the user's words are not being written down, in their terms.
+    static func mutedText(_ reason: MicrophoneGate.Reason, app: String) -> String {
+        switch reason {
+        case .mutedInApp: String(localized: "live.mic.mutedInApp \(app)", bundle: .localized)
+        case .appReleasedMicrophone: String(localized: "live.mic.appReleased \(app)", bundle: .localized)
+        case .mutedInQuill: MeetingCopy.t("live.mic.mutedInQuill")
+        }
     }
 
     /// The voices heard so far, each a chip to name and give a role to as the meeting goes.
@@ -280,6 +299,11 @@ struct LiveView: View {
                          ? String(localized: "live.lost.others \(app.name)", bundle: .localized)
                          : MeetingCopy.t("live.lost.me"))
                 }
+            } else if let reason = coordinator.microphoneMuted {
+                HStack(alignment: .firstTextBaseline, spacing: Metrics.Spacing.snug) {
+                    Image(systemName: "mic.slash.fill").foregroundStyle(.orange).accessibilityHidden(true)
+                    Text(Self.mutedText(reason, app: app.name))
+                }
             } else if case .needsDownload(let configuration) = coordinator.translationState {
                 HStack(spacing: Metrics.Spacing.snug) {
                     Image(systemName: "translate").foregroundStyle(.tint).accessibilityHidden(true)
@@ -323,6 +347,13 @@ private struct VoiceChip: View {
     var body: some View {
         let color = SpeakerColors.color(for: voice.label)
         let title = coordinator.liveName(voice.label)
+        HStack(spacing: 4) {
+            chip(title: title, color: color)
+            if let person = voice.suggestion { suggestion(person, title: title, color: color) }
+        }
+    }
+
+    private func chip(title: String, color: Color) -> some View {
         Button {
             name = voice.name
             roleID = voice.roleID
@@ -369,6 +400,29 @@ private struct VoiceChip: View {
             }
             .padding(14)
         }
+    }
+
+    private func suggestion(_ person: MeetingFlowModel.KnownPerson, title: String, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Button {
+                coordinator.acceptLiveSuggestion(voice.label)
+            } label: {
+                Label(String(localized: "live.voice.suggestion \(person.name)", bundle: .localized), systemImage: "waveform")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .help(String(localized: "live.voice.suggestion.help \(title) \(person.name)", bundle: .localized))
+            Button {
+                coordinator.rejectLiveSuggestion(voice.label)
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+            }
+            .help(MeetingCopy.t("people.voice.no"))
+            .accessibilityLabel(MeetingCopy.t("people.voice.no"))
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(color.opacity(0.1), in: .capsule)
+        .fixedSize()
     }
 
     private func save() {

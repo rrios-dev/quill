@@ -3,6 +3,7 @@ import ListenKit
 import MeetingKit
 import ModelKit
 import Observation
+import QuillAgent
 import QuillSupport
 import SpeakerKit
 import SynthesisKit
@@ -39,6 +40,11 @@ final class MeetingsCoordinator {
         var name: String
         var roleID: String?
         var seconds: Double
+        /// Someone from the people directory this voice sounds like, offered on its chip
+        /// until the user names it (J-03: proposed, never applied on its own).
+        var suggestion: MeetingFlowModel.KnownPerson?
+        /// People the user said it is not.
+        var rejected: [UUID] = []
     }
 
     /// Live translation (macOS's on-device Translation framework): off when the meeting
@@ -60,6 +66,7 @@ final class MeetingsCoordinator {
     private(set) var liveVoices: [LiveVoice] = []
     private var labeler = SpeakerLabeler()
     private var liveSeparator: SpeakerSeparator?
+    private var liveEmbedder: SpeakerEmbedder?
     private var diarizationLoop: Task<Void, Never>?
     private var diarizationPass: Task<Void, Never>?
     /// Lines wait here and are translated one at a time, in order: a session is not
@@ -79,6 +86,16 @@ final class MeetingsCoordinator {
     /// Channels whose capture stopped delivering and is being rebuilt: the live panel
     /// says so, instead of the meeting quietly losing a side.
     private(set) var lostChannels: Set<Channel> = []
+    /// Why "me" is not being transcribed right now, or nil while it is (J-10).
+    private(set) var microphoneMuted: MicrophoneGate.Reason?
+    /// Whether the meeting app's own mute control could be read; when it cannot, the
+    /// live panel's switch is the user's way to keep their words out.
+    private(set) var muteControlReadable = false
+    /// Counts a feature for the usage statistics (J-11); a no-op until the user said yes.
+    var countUsage: (String, Int) -> Void = { _, _ in }
+    private var microphoneGate: MicrophoneGate?
+    private var muteReader: MuteControlReader?
+    private var muteReadability: Task<Void, Never>?
     var preferences: MeetingPreferences
 
     let store: MeetingStore
@@ -112,6 +129,13 @@ final class MeetingsCoordinator {
             if removed > 0 { log.info("retention removed \(removed) meetings") }
         } catch {
             log.error("retention purge failed: \(error)")
+        }
+        // People named in meetings saved before voices were kept start out recognised.
+        do {
+            let learnt = try store.learnVoicesFromHistory()
+            if learnt > 0 { log.info("learnt \(learnt) voices from saved meetings") }
+        } catch {
+            log.error("learning voices from saved meetings failed: \(error)")
         }
         let monitor = AudioActivityMonitor { [weak self] processes in
             MainActor.assumeIsolated { self?.microphoneUseChanged(processes) }
@@ -224,13 +248,16 @@ final class MeetingsCoordinator {
             offerError = lastError
             return
         }
-        let session = ListenSession(configuration: .init(
+        var configuration = ListenSession.Configuration(
             target: .bundleIDs(bundleIDs),
             sourceName: app.name,
             locale: Locale(identifier: language),
             includeMicrophone: preferences.includeMicrophone,
             keepsOthersAudio: preferences.separateSpeakers
-        ))
+        )
+        let gate = MicrophoneGate()
+        configuration.microphoneGate = gate
+        let session = ListenSession(configuration: configuration)
         do {
             try await session.start(onSegment: { [weak self] segment in
                 Task { @MainActor in self?.append(segment) }
@@ -247,6 +274,7 @@ final class MeetingsCoordinator {
         self.session = session
         liveLines = []
         lostChannels = []
+        startMicrophoneGate(gate, app: app)
         await setUpTranslation(language: language)
         startLiveDiarization()
         listeningSince = Date()
@@ -267,6 +295,54 @@ final class MeetingsCoordinator {
             if livePanel == nil { showLivePanel(app: app) }
         }
     }
+
+    // MARK: Microphone mute
+
+    private func startMicrophoneGate(_ gate: MicrophoneGate, app: MeetingApp) {
+        microphoneGate = gate
+        microphoneMuted = gate.mutedReason
+        gate.observe { [weak self] reason in
+            Task { @MainActor in
+                guard let self, self.microphoneGate === gate else { return }
+                if self.microphoneMuted != reason {
+                    self.log.info("microphone \(reason.map { "muted: \($0.rawValue)" } ?? "live")")
+                }
+                self.microphoneMuted = reason
+            }
+        }
+        let reader = MuteControlReader(app: app, gate: gate)
+        reader.start()
+        muteReader = reader
+        muteReadability = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.muteControlReadable = gate.appControl != nil
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    private func stopMicrophoneGate() {
+        muteReader?.stop()
+        muteReader = nil
+        muteReadability?.cancel()
+        muteReadability = nil
+        microphoneGate = nil
+        microphoneMuted = nil
+        muteControlReadable = false
+    }
+
+    /// The live panel's switch: keep "me" out of the transcript whatever the app says.
+    func toggleMicrophone() {
+        guard let gate = microphoneGate else { return }
+        gate.setUserMuted(!gate.isUserMuted)
+        if gate.isUserMuted { countUsage("microphone_muted_in_quill", 1) }
+    }
+
+    var isMicrophoneMutedInQuill: Bool { microphoneMuted == .mutedInQuill }
+
+    /// Whether this meeting records the user's microphone at all.
+    var includesMicrophone: Bool { microphoneGate != nil && preferences.includeMicrophone }
 
     private func append(_ segment: TranscriptSegment) {
         let line = LiveLine(id: nextLineID, segment: segment)
@@ -307,8 +383,10 @@ final class MeetingsCoordinator {
         guard preferences.separateSpeakers else { return }
         let separator = SpeakerSeparator(modelsDirectory: directory.appendingPathComponent("models", isDirectory: true))
         liveSeparator = separator
+        let embedder = SpeakerEmbedder(modelsDirectory: directory.appendingPathComponent("models/streaming", isDirectory: true))
         diarizationLoop = Task { @MainActor [weak self] in
             try? await separator.prepare()
+            if (try? await embedder.prepare()) != nil { self?.liveEmbedder = embedder }
             var interval: Duration = .seconds(60)
             while !Task.isCancelled {
                 try? await Task.sleep(for: interval)
@@ -331,6 +409,58 @@ final class MeetingsCoordinator {
         guard let turns = await pass.value, self.session != nil else { return }
         let labelled = labeler.label(turns)
         applyLiveLabels(labelled)
+        await suggestLivePeople(turns: labelled, samples: samples)
+    }
+
+    /// Each unnamed voice measured on its longest turns and compared with the people
+    /// directory (`VoiceRecognition`), off the main thread.
+    private func suggestLivePeople(turns: [SpeakerTurn], samples: [Float]) async {
+        guard let embedder = liveEmbedder else { return }
+        let people = store.people().filter { !($0.voices ?? []).isEmpty }
+        guard !people.isEmpty else { return }
+        let unnamed = Set(liveVoices.filter { $0.name.isEmpty }.map(\.label))
+        let voices = await Task.detached(priority: .utility) { () -> [String: Voiceprint] in
+            Self.measureVoices(turns: turns.filter { unnamed.contains($0.speaker) }, samples: samples, embedder: embedder)
+        }.value
+        let named = Dictionary(liveVoices.compactMap { voice in
+            store.person(named: voice.name).map { (voice.label, $0.id) }
+        }, uniquingKeysWith: { first, _ in first })
+        let rejected = Dictionary(uniqueKeysWithValues: liveVoices.map { ($0.label, $0.rejected) })
+        let suggestions = VoiceRecognition.suggestions(voices: voices, people: people, named: named, rejected: rejected)
+        let known = Dictionary(people.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for index in liveVoices.indices where liveVoices[index].name.isEmpty {
+            liveVoices[index].suggestion = suggestions[liveVoices[index].label].flatMap { known[$0.personID] }
+                .map { MeetingFlowModel.KnownPerson(id: $0.id, name: $0.name, roleID: $0.roleID) }
+        }
+    }
+
+    /// A voiceprint per voice from its four longest turns of at least 1.5 s.
+    nonisolated static func measureVoices(turns: [SpeakerTurn], samples: [Float], embedder: SpeakerEmbedder) -> [String: Voiceprint] {
+        let rate = AudioAccumulator.sampleRate
+        var segments: [TranscriptSegment] = []
+        for (speaker, group) in Dictionary(grouping: turns, by: \.speaker) {
+            for turn in group.filter({ $0.end - $0.start >= 1.5 }).sorted(by: { $0.end - $0.start > $1.end - $1.start }).prefix(4) {
+                let first = max(0, Int(turn.start * rate)), last = min(samples.count, Int(turn.end * rate))
+                guard last > first, let print = try? embedder.voiceprint(of: Array(samples[first..<last])) else { continue }
+                segments.append(TranscriptSegment(channel: .others, start: turn.start, end: turn.end, text: "",
+                                                  speaker: speaker, voiceprint: Voiceprint(print)))
+            }
+        }
+        return VoiceRecognition.voices(of: Transcript(startedAt: Date(), locale: "", source: "", segments: segments))
+    }
+
+    /// The chip's "is it Fran?" answered yes.
+    func acceptLiveSuggestion(_ label: String) {
+        guard let voice = liveVoices.first(where: { $0.label == label }), let person = voice.suggestion else { return }
+        nameLiveVoice(label, name: person.name, roleID: person.roleID)
+        countUsage("voices_recognised", 1)
+    }
+
+    /// Answered no: not offered again for this voice in this meeting.
+    func rejectLiveSuggestion(_ label: String) {
+        guard let index = liveVoices.firstIndex(where: { $0.label == label }), let person = liveVoices[index].suggestion else { return }
+        liveVoices[index].rejected.append(person.id)
+        liveVoices[index].suggestion = nil
     }
 
     private func applyLiveLabels(_ turns: [SpeakerTurn]) {
@@ -356,6 +486,7 @@ final class MeetingsCoordinator {
         guard let index = liveVoices.firstIndex(where: { $0.label == label }) else { return }
         liveVoices[index].name = name.trimmingCharacters(in: .whitespaces)
         liveVoices[index].roleID = roleID
+        liveVoices[index].suggestion = nil
     }
 
     /// What the live panel calls a voice: its name, else "Persona N".
@@ -372,6 +503,7 @@ final class MeetingsCoordinator {
         diarizationLoop = nil
         await diarizationPass?.value
         liveSeparator = nil
+        liveEmbedder = nil
     }
 
     // MARK: Translation
@@ -465,6 +597,7 @@ final class MeetingsCoordinator {
         phase = .separating
         let captured = session.secondsCaptured
         var transcript = await session.stop()
+        stopMicrophoneGate()
         log.info("capture: \(session.diagnostics.joined(separator: " | "))")
         lostChannels = []
         let samples = session.takeOthersAudio()
@@ -499,7 +632,7 @@ final class MeetingsCoordinator {
             }
         }
 
-        let record = MeetingRecord(
+        var record = MeetingRecord(
             title: String(localized: "meetings.defaultTitle \(app.name)", bundle: .localized),
             sourceApp: app.name,
             startedAt: started,
@@ -508,11 +641,16 @@ final class MeetingsCoordinator {
             people: people,
             capturedSeconds: Dictionary(uniqueKeysWithValues: captured.map { ($0.key.rawValue, $0.value) })
         )
+        // Written with the vocabulary of whoever said each sentence: everybody's, the
+        // user's own, and that of people named during the meeting.
+        record = store.applyingVocabulary(to: record)
         for channel in record.silentChannels {
             log.error("meeting saved with little audio from \(channel.rawValue): \(captured[channel] ?? 0) s of \(record.duration) s")
         }
         do {
             try store.save(record)
+            countUsage("meetings", 1)
+            countUsage("meeting_minutes", Int((record.duration / 60).rounded()))
         } catch {
             log.error("could not save the meeting: \(error)")
         }
@@ -531,6 +669,7 @@ final class MeetingsCoordinator {
         await stopLiveDiarization()
         liveVoices = []
         _ = await session.stop()
+        stopMicrophoneGate()
         _ = session.takeOthersAudio()
         self.session = nil
         phase = .idle
@@ -573,6 +712,15 @@ final class MeetingsCoordinator {
         }
         liveVoices = labels.map { LiveVoice(label: $0, name: names[$0] ?? "", roleID: roles[$0], seconds: 30) }
     }
+    /// Snapshot support: an unnamed live voice proposed as someone from the directory.
+    func debugSuggestLiveVoice(_ label: String, as name: String, roleID: String?) {
+        guard let index = liveVoices.firstIndex(where: { $0.label == label }) else { return }
+        liveVoices[index].suggestion = MeetingFlowModel.KnownPerson(id: UUID(), name: name, roleID: roleID)
+    }
+    /// Snapshot support: the microphone muted for `reason`, as the gate would say.
+    func debugMicrophoneMuted(_ reason: MicrophoneGate.Reason?) {
+        microphoneMuted = reason
+    }
     func debugTranslate(_ translations: [String]) {
         // Only the others' words are translated, as in a meeting.
         for (index, text) in translations.enumerated() where liveLines.indices.contains(index) && liveLines[index].segment.channel == .others {
@@ -585,6 +733,45 @@ final class MeetingsCoordinator {
     func debugMeetingModel(_ id: UUID) -> MeetingFlowModel? { meetingWindows[id]?.debugModel }
     var debugFocusEditorWindow: NSWindow? { focusEditor?.shownWindow }
     #endif
+
+    // MARK: Agents
+
+    /// A synthesis asked for by an agent (docs/initiatives/mac-apps-mcp/DESIGN.md): the same
+    /// path as the Synthesise button — model, consent, weighting, saving — through the
+    /// meeting's open window when there is one, so the two never write over each other.
+    func synthesizeForAgent(meetingID: UUID, focusID: String?) async -> AgentReply {
+        let model: MeetingFlowModel
+        if let open = meetingWindows[meetingID]?.flowModel {
+            model = open
+        } else {
+            guard let record = store.meeting(meetingID) else {
+                return .failure("That meeting is no longer in Quill.")
+            }
+            model = MeetingFlowModel(record: record, coordinator: self, step: .synthesis)
+        }
+        guard !model.running else { return .failure("Quill is already synthesising this meeting. Try again in a moment.") }
+        if let focusID {
+            guard model.focuses.contains(where: { $0.id == focusID }) else { return .failure("No focus with id \(focusID).") }
+            model.focusID = focusID
+        }
+        let before = model.result?.id
+        await model.synthesize()
+        if let provider = model.consentProvider {
+            model.declineConsent()
+            return .failure("""
+                The first time a meeting goes to \(provider), Quill asks the user. Ask them to open the \
+                meeting in Quill and press Synthesise once; after that agents can ask for syntheses.
+                """)
+        }
+        guard let result = model.result, result.id != before else {
+            return .failure(model.error ?? "Quill could not synthesise the meeting.")
+        }
+        return AgentReply(text: result.text, details: [
+            "meeting": model.record.title,
+            "focus": store.displayName(of: result),
+            "model": result.model,
+        ].merging(result.isDraft ? ["draft": "on-device model; owners and dates may be wrong"] : [:]) { $1 })
+    }
 
     // MARK: Windows
 

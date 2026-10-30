@@ -107,3 +107,30 @@ to follow at 73–97 %. One mark is not enough — so Quill moves the marked sen
 and only proposes the others from the second mark. 2-means re-estimated from the marks was
 worse (it drifts back towards one voice) and is not used. Voice profiles (S2) give the
 same "known sentences" for free when both people were met before.
+
+### 2026-10-30 — the microphone, voice profiles and the vocabulary (J-10)
+
+**"Me" was never transcribed.** Eight real meetings since 2026-10-08 (17–54 min, the
+microphone capturing the whole time) held no sentence of "me". Voice processing delivers
+the microphone as three discrete channels at 16 kHz, and `AVAudioConverter` maps them to
+mono as silence (test: peak 0 → 9 830 once the first channel is mapped). On headphones
+the capture also opened the system default, a webcam across the desk (−62 dB with the
+owner speaking); it now records from the device the meeting app records from.
+
+**Muted in the app.** Teams keeps the microphone open while muted, so Core Audio cannot
+tell. `MicrophoneGate` combines the app holding no microphone, the app's mute control
+read through Accessibility (`MuteLabel`: the control is labelled with its action) and
+the live panel's own switch; the microphone waits 0.6 s so a mute noticed late still
+covers what was said. Not verified in a real call yet: Teams' button labels are matched
+by family ("Silenciar"/"Reactivar audio", "Mute"/"Unmute"), not read from a live call.
+
+**S2, voice profiles.** Measured on the owner's three meetings with prints: the same
+voice in two meetings 0.85; different voices ≤ 0.47, except one person split in two in a
+meeting (0.62). Threshold 0.6 to propose, 0.75 to call two samples the same voice. On
+that data the voice named "Fran" on 30-oct is the one named "Hugo" on 26-oct (0.83) and
+0.24 from the other "Fran": the window now flags a named voice that sounds like someone
+else.
+
+**S3–S4, vocabulary.** Spike: `SpeechTranscriber` ignores `AnalysisContext`'s
+contextual strings ("Kilmet", "Zubizarrete" with and without them), so the vocabulary is
+applied to the text, by speaker, never handed to the model.

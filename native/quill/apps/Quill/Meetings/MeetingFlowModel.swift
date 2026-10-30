@@ -68,6 +68,18 @@ final class MeetingFlowModel {
         var roleID: String?
         /// The role came from the people directory, not from this meeting.
         var roleRemembered: Bool
+        /// Someone the directory knows whose voice this sounds like, for an unnamed
+        /// voice, proposed for the user to confirm (J-03).
+        var suggestion: KnownPerson?
+        /// For a named voice: someone else it sounds like, so one of the names is wrong.
+        var soundsLike: KnownPerson?
+    }
+
+    /// A person of the directory, as a row proposes them.
+    struct KnownPerson: Equatable {
+        let id: UUID
+        let name: String
+        let roleID: String?
     }
 
     var step: Step
@@ -102,6 +114,29 @@ final class MeetingFlowModel {
     private(set) var transcriptTranslation: TranscriptTranslation = .notNeeded
     private(set) var stats: [SpeakerStat] = []
     private(set) var proposal: Proposal?
+    /// What the last correction taught, said under the transcript until dismissed.
+    private(set) var learnt: LearntNotice?
+
+    /// The words a correction added to someone's vocabulary (VOICES.md S3–S4).
+    struct LearntNotice: Equatable {
+        /// "cuber netes" → "Kubernetes", in order.
+        let pairs: [Pair]
+        /// Whose vocabulary: a person's name, the user's, or nil for everybody.
+        let owner: String?
+        /// Other sentences of the same voice corrected with it.
+        let alsoCorrected: Int
+        /// Pairs already kept for someone else: offered to everybody (J-04).
+        let promotable: [Pair]
+        fileprivate let sentence: Int
+        fileprivate let previousText: String
+        fileprivate let previousOthers: [Int: String]
+        fileprivate let created: [UUID]
+
+        struct Pair: Equatable, Hashable {
+            let heard: String
+            let written: String
+        }
+    }
 
     private let coordinator: MeetingsCoordinator
     private let log = QuillLog(category: "meeting-flow")
@@ -172,6 +207,11 @@ final class MeetingFlowModel {
         focuses = store.focuses()
         if !focuses.contains(where: { $0.id == focusID }) { focusID = focuses.first?.id ?? "work" }
         let known = Dictionary(store.people().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let suggestions = store.suggestions(for: record)
+        let conflicts = store.conflicts(for: record)
+        func knownPerson(_ suggestion: VoiceRecognition.Suggestion?) -> KnownPerson? {
+            suggestion.flatMap { known[$0.personID] }.map { KnownPerson(id: $0.id, name: $0.name, roleID: $0.roleID) }
+        }
         rows = record.labels.map { label in
             let segments = record.transcript.segments.filter { ($0.speaker ?? $0.channel.rawValue) == label }
             let sample = segments.max { $0.text.count < $1.text.count }?.text ?? ""
@@ -179,7 +219,11 @@ final class MeetingFlowModel {
             let person = personID.flatMap { known[$0] }
             let name = record.transcript.names[label] ?? person?.name ?? ""
             return PersonRow(label: label, turns: segments.count, sample: String(sample.prefix(110)),
-                             name: name, roleID: person?.roleID, roleRemembered: person?.roleID != nil)
+                             name: name, roleID: person?.roleID, roleRemembered: person?.roleID != nil,
+                             suggestion: name.isEmpty ? knownPerson(suggestions[label]) : nil,
+                             soundsLike: knownPerson(conflicts[label].flatMap {
+                                 (record.rejectedPeople?[label] ?? []).contains($0.personID) ? nil : $0
+                             }))
         }
     }
 
@@ -332,12 +376,145 @@ final class MeetingFlowModel {
         }
     }
 
+    // MARK: Corrections
+
+    /// The user rewrote a sentence. The words that changed are learnt for whoever said it
+    /// and written into their other sentences of this meeting; an unnamed voice's go to
+    /// everybody, since they belong to nobody yet.
+    func correct(sentence index: Int, to text: String) {
+        guard record.transcript.segments.indices.contains(index) else { return }
+        let new = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let segment = record.transcript.segments[index]
+        guard !new.isEmpty, new != segment.text else { return }
+        commitPeople()
+        let label = segment.speaker ?? segment.channel.rawValue
+        let scope = record.vocabularyScope(of: label) ?? .global
+        let pairs = Vocabulary.replacements(from: segment.text, to: new)
+        record.transcript.segments[index].text = new
+        record.transcript.segments[index].words = []
+        var created: [UUID] = []
+        var entries: [VocabularyEntry] = []
+        var promotable: [LearntNotice.Pair] = []
+        for pair in pairs {
+            guard let learnt = try? store.learn(heard: pair.heard, written: pair.written, scope: scope) else { continue }
+            if learnt.entry.uses == 1 { created.append(learnt.entry.id) }
+            entries.append(learnt.entry)
+            if !learnt.alsoFor.isEmpty { promotable.append(.init(heard: pair.heard, written: pair.written)) }
+        }
+        var previousOthers: [Int: String] = [:]
+        if !entries.isEmpty {
+            for other in record.transcript.segments.indices where other != index
+                && (record.transcript.segments[other].speaker ?? record.transcript.segments[other].channel.rawValue) == label {
+                let before = record.transcript.segments[other].text
+                let after = Vocabulary.apply(entries, to: before)
+                if after != before {
+                    previousOthers[other] = before
+                    record.transcript.segments[other].text = after
+                    record.transcript.segments[other].words = []
+                }
+            }
+        }
+        if !pairs.isEmpty { coordinator.countUsage("corrections", pairs.count) }
+        learnt = pairs.isEmpty ? nil : LearntNotice(
+            pairs: pairs.map { .init(heard: $0.heard, written: $0.written) },
+            owner: scope == .global ? nil : displayName(for: label),
+            alsoCorrected: previousOthers.count, promotable: promotable,
+            sentence: index, previousText: segment.text, previousOthers: previousOthers, created: created)
+        persist()
+        rebuildTranscript()
+    }
+
+    /// Puts the sentences back and forgets what that correction alone had taught.
+    func undoCorrection() {
+        guard let notice = learnt else { return }
+        record.transcript.segments[notice.sentence].text = notice.previousText
+        for (index, text) in notice.previousOthers { record.transcript.segments[index].text = text }
+        for id in notice.created { try? store.forgetVocabulary(id) }
+        learnt = nil
+        persist()
+        rebuildTranscript()
+    }
+
+    /// "Use it for everybody": the correction kept for several people becomes global, and
+    /// this meeting is written with it.
+    func makeCorrectionGlobal() {
+        guard let notice = learnt else { return }
+        for pair in notice.promotable { try? store.makeGlobal(heard: pair.heard, written: pair.written) }
+        record = store.applyingVocabulary(to: record)
+        learnt = nil
+        persist()
+        rebuildTranscript()
+    }
+
+    func dismissLearnt() { learnt = nil }
+
+    // MARK: Known voices
+
+    /// "Fran · Product Owner", or the name alone.
+    func personTitle(_ person: KnownPerson) -> String {
+        guard let roleID = person.roleID, let role = roles.first(where: { $0.id == roleID }) else { return person.name }
+        return person.name + " · " + role.name
+    }
+
+    /// The user confirms the proposal: the row takes the person's name and role, and their voice learns
+    /// this meeting's.
+    func acceptSuggestion(for label: String) {
+        guard let index = rows.firstIndex(where: { $0.label == label }),
+              let person = rows[index].suggestion ?? rows[index].soundsLike else { return }
+        rows[index].name = person.name
+        rows[index].roleID = person.roleID
+        rows[index].roleRemembered = person.roleID != nil
+        commitPeople()
+        reload()
+        coordinator.countUsage("voices_recognised", 1)
+    }
+
+    /// The user says it is someone else: not proposed again for this voice, and the samples that
+    /// made Quill think so are forgotten — they were this voice under another name.
+    func rejectSuggestion(for label: String) {
+        guard let row = rows.first(where: { $0.label == label }),
+              let person = row.suggestion ?? row.soundsLike else { return }
+        var rejected = record.rejectedPeople ?? [:]
+        rejected[label, default: []].append(person.id)
+        record.rejectedPeople = rejected
+        if row.suggestion != nil, let voice = VoiceRecognition.voices(of: record.transcript)[label] {
+            try? store.unlearnVoice(like: voice, of: person.id)
+        }
+        persist()
+        reload()
+    }
+
+    /// Two voices given the same name are one person the diarizer split: the later
+    /// voice's sentences join the first. Measured on the owner's meetings: "Fran" twice
+    /// in one call, the two voices 0.62 alike.
+    private func mergeVoicesWithTheSameName() -> Bool {
+        var first: [String: String] = [:]
+        var moves: [(from: String, to: String)] = []
+        for row in rows where row.label != "me" && row.label != "others" {
+            let key = row.name.trimmingCharacters(in: .whitespaces)
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            guard !key.isEmpty else { continue }
+            if let target = first[key] { moves.append((row.label, target)) } else { first[key] = row.label }
+        }
+        guard !moves.isEmpty else { return false }
+        for move in moves {
+            let indices = record.transcript.segments.indices.filter { record.transcript.segments[$0].speaker == move.from }
+            record.transcript.move(indices, to: move.to)
+            record.transcript.names[move.from] = nil
+            record.people[move.from] = nil
+        }
+        rows.removeAll { row in moves.contains { $0.from == row.label } }
+        log.info("merged \(moves.count) voices named like another in the same meeting")
+        return true
+    }
+
     /// Names and roles go into the meeting and into the people directory, as they are
     /// typed: there is no separate step to confirm them.
     ///
     /// A label already tied to a person of the same name only changes that person's role;
     /// remembering them again would count the same meeting twice.
     func commitPeople() {
+        let merged = mergeVoicesWithTheSameName()
         let known = Dictionary(store.people().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var names: [String: String] = [:]
         var people: [String: UUID] = [:]
@@ -353,9 +530,20 @@ final class MeetingFlowModel {
                 people[row.label] = person.id
             }
         }
-        guard names != record.transcript.names || people != record.people else { return }
+        guard merged || names != record.transcript.names || people != record.people else { return }
+        // Each named voice teaches its person what they sound like; a person who lost a
+        // voice here forgets what they sounded like in this meeting.
+        let voices = VoiceRecognition.voices(of: record.transcript)
+        for (label, old) in record.people where people[label] != old {
+            try? store.forgetVoice(of: old, in: record.id)
+        }
+        for (label, person) in people {
+            if let voice = voices[label] { try? store.learnVoice(voice, of: person, in: record.id) }
+        }
         record.transcript.names = names
         record.people = people
+        // A voice that now has a person is written with that person's vocabulary.
+        record = store.applyingVocabulary(to: record)
         persist()
         rebuildTranscript()
         Task { await translateTranscript() }
@@ -422,6 +610,8 @@ final class MeetingFlowModel {
             record.syntheses.append(synthesis)
             result = synthesis
             persist()
+            coordinator.countUsage("syntheses", 1)
+            coordinator.countUsage(QuillUsage.provider(selection.provider.rawValue), 1)
         } catch {
             log.error("synthesis failed: \(error)")
             self.error = MeetingCopy.t("synthesis.error.failed")

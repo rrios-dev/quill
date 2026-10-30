@@ -70,8 +70,11 @@ enum MeetingSnapshots {
                                  names: ["speaker-1": "Lucía", "speaker-2": "Andrés"],
                                  roles: ["speaker-1": "tech-lead"])
         meetings.debugTranslate((translatedLines ?? []).prefix(6).map(\.said))
+        meetings.debugSuggestLiveVoice("speaker-3", as: "Marta", roleID: "support")
+        meetings.debugMicrophoneMuted(.mutedInApp)
         await settle()
         await snap("live-voices", meetings.debugLiveWindow)
+        meetings.debugMicrophoneMuted(nil)
         meetings.debugCollapseLive()
         await settle()
         await snap("live-orb", meetings.debugLiveWindow)
@@ -87,6 +90,15 @@ enum MeetingSnapshots {
             } else {
                 window.setFrame(NSRect(x: screen.visibleFrame.minX, y: screen.visibleFrame.minY,
                                        width: min(1280, screen.visibleFrame.width), height: screen.visibleFrame.height), display: true)
+            }
+        }
+        // A correction of the first sentence of a named voice, learnt for that person.
+        if let model = meetings.debugMeetingModel(record.id),
+           let index = record.transcript.segments.firstIndex(where: { $0.speaker == "speaker-1" }) {
+            let original = record.transcript.segments[index].text
+            let words = original.split(separator: " ")
+            if let target = words.first(where: { $0.count > 5 }) {
+                model.correct(sentence: index, to: original.replacingOccurrences(of: String(target), with: String(target).uppercased() + "X"))
             }
         }
         await settle()
@@ -134,6 +146,12 @@ enum MeetingSnapshots {
         NSApp.terminate(nil)
     }
 
+    static func voiceprint(axis: Int) -> Voiceprint {
+        var values = [Float](repeating: 0, count: 16)
+        values[axis % 16] = 1
+        return Voiceprint(values)
+    }
+
     /// `[hh:mm:ss] Name: text` lines.
     static func parse(_ text: String) -> [(name: String, start: Double, said: String)] {
         text.split(separator: "\n").compactMap { line in
@@ -164,7 +182,9 @@ enum MeetingSnapshots {
             } else {
                 let label = labels[name] ?? "speaker-\(labels.count + 1)"
                 labels[name] = label
-                segments.append(TranscriptSegment(channel: .others, start: start, end: start + 5, text: said, speaker: label))
+                // Each voice a direction of its own, so recognition has something to match.
+                segments.append(TranscriptSegment(channel: .others, start: start, end: start + 5, text: said, speaker: label,
+                                                  voiceprint: voiceprint(axis: labels.count)))
             }
         }
         let roleOf = ["Lucía": "tech-lead", "Andrés": "tech-lead", "Marta": "support", "Diego": "engineer"]
@@ -174,6 +194,12 @@ enum MeetingSnapshots {
         for (name, label) in labels where name != "Diego" {
             names[label] = name
             if let person = try? store.remember(name: name, roleID: roleOf[name]) { people[label] = person.id }
+        }
+        // Diego is left unnamed here but known from an earlier meeting, so the window
+        // proposes him by voice.
+        if let label = labels["Diego"], let diego = try? store.remember(name: "Diego", roleID: "engineer"),
+           let axis = Int(label.split(separator: "-").last ?? "") {
+            try? store.learnVoice(voiceprint(axis: axis), of: diego.id, in: UUID())
         }
         var record = MeetingRecord(
             title: DebugHooks.value("QUILL_SNAPSHOT_TITLE") ?? "Reunión semanal de producto", sourceApp: "Microsoft Teams",

@@ -23,6 +23,7 @@ let package = Package(
         .library(name: "SynthesisKit", targets: ["SynthesisKit"]),
         .library(name: "MeetingKit", targets: ["MeetingKit"]),
         .executable(name: "Quill", targets: ["Quill"]),
+        .executable(name: "quill-mcp", targets: ["QuillMCP"]),
         .executable(name: "quill-bench", targets: ["QuillBench"]),
         .executable(name: "meeting-bench", targets: ["MeetingBench"]),
     ],
@@ -33,6 +34,9 @@ let package = Package(
         // diarization of its own (checked in the macOS 27 SDK). Everything else in a
         // meeting — capture, transcription, echo cancellation — is the system's.
         .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4"),
+        // The MCP server agents launch (docs/initiatives/mac-apps-mcp/DESIGN.md): the
+        // owner's own package, MIT, Foundation only — shared with Ámbar and Tessera.
+        .package(url: "https://github.com/rrios-dev/mcpkit.git", from: "0.2.0"),
     ],
     targets: [
         // Leaf utilities every Quill target may import. Depends on nothing.
@@ -115,12 +119,37 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
 
+        // What agents (Claude Code, Codex…) can do with Quill over MCP: the tools, the access
+        // switch and log, and the request the MCP server hands to the running app
+        // (docs/initiatives/mac-apps-mcp/DESIGN.md). No AppKit.
+        .target(
+            name: "QuillAgent",
+            dependencies: [
+                "MeetingKit", "SynthesisKit", "ListenKit", "RewriteKit",
+                .product(name: "MCPKit", package: "mcpkit"),
+            ],
+            path: "packages/QuillAgent",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
+        // quill-mcp: the MCP server inside Quill.app, launched by the agent over stdio.
+        .executableTarget(
+            name: "QuillMCP",
+            dependencies: [
+                "QuillAgent", "QuillSupport", "MeetingKit",
+                .product(name: "MCPKit", package: "mcpkit"),
+            ],
+            path: "apps/QuillMCP",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
         // The app. Thin: wiring and UI (ARCHITECTURE §5).
         .executableTarget(
             name: "Quill",
             dependencies: [
                 "QuillSupport", "SelectionKit", "ModelKit", "RewriteKit", "ListenKit", "SpeakerKit",
-                "SynthesisKit", "MeetingKit",
+                "SynthesisKit", "MeetingKit", "QuillAgent",
+                .product(name: "MCPKit", package: "mcpkit"),
                 .product(name: "AppCore", package: "Ambar"),
                 .product(name: "GlassUI", package: "Ambar"),
             ],
@@ -158,6 +187,13 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
 
+        .testTarget(
+            name: "QuillAgentTests",
+            dependencies: ["QuillAgent", "MeetingKit", "ListenKit", "SynthesisKit", "RewriteKit",
+                           .product(name: "MCPKit", package: "mcpkit")],
+            path: "Tests/QuillAgentTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .testTarget(
             name: "ModelKitTests",
             dependencies: ["ModelKit"],

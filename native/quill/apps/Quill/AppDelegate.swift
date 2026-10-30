@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
     }
     private var updateTimer: Timer?
+    /// Usage statistics, only with the user's yes (J-11).
+    let usage = UsageReport(app: "quill", version: AppDelegate.runningVersion, allowedCounts: QuillUsage.counts,
+                            endpoint: .init(url: QuillUsage.endpoint))
+    private var usageTimer: Timer?
+    private var agents: AgentService?
     /// The provider line's evaluation for the menu that is open, cancelled when it closes.
     private var statusTask: Task<Void, Never>?
     #if DEBUG
@@ -58,8 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             log.error("meetings unavailable: \(error)")
         }
+        agents = AgentService(environment: environment, meetings: meetings)
+        meetings?.countUsage = { [weak self] name, amount in self?.usage.count(name, by: amount) }
         showOnboardingIfNeeded()
         startUpdateChecks()
+        startUsageReports()
         services.onText = { [weak self] text in self?.rewriteFromServices(text) }
         NSApplication.shared.servicesProvider = services
         NSUpdateDynamicServices()
@@ -420,6 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             picker?.close()
         case .toast(let outcome, let profile, let direct):
             log.info("applied: \(outcome)\(direct ? " directly" : "")")
+            usage.count("rewrites")
             toast.show(ToastController.text(for: outcome, profile: profile, direct: direct),
                        near: session?.capture?.bounds)
         case .openSettings(let pane):
@@ -521,6 +530,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Updates
 
     /// At launch and every few hours; `UpdateCheck` itself asks at most once a day.
+    /// Asks once (after onboarding, never during it), counts the launch, and sends the
+    /// finished days now and every six hours. Debug builds never send.
+    private func startUsageReports() {
+        if usage.consent == nil, (try? environment?.settings.settings())?.onboardingCompleted == true {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard let self, self.usage.consent == nil else { return }
+                QuillUsage.ask(self.usage)
+            }
+        }
+        usage.count("launches")
+        #if DEBUG
+        return
+        #else
+        Task { await usage.flush() }
+        usageTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.usage.flush() }
+        }
+        #endif
+    }
+
     private func startUpdateChecks() {
         #if DEBUG
         guard DebugHooks.updateCheckVersion != nil else { return }
@@ -560,10 +590,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(skip)
     }
 
-    /// The disk image, or the release page when the release has none.
+    private var installingUpdate = false
+
+    /// One click (J-13): the disk image is downloaded, checked (this team's signature,
+    /// notarized, newer) and put in place of this app, which reopens. Anything that goes
+    /// wrong opens the disk image instead, the drag of before. A meeting being recorded
+    /// is never cut short by it.
     @objc func downloadUpdate() {
-        guard let update = updates.available else { return }
-        NSWorkspace.shared.open(update.download ?? update.page)
+        guard let update = updates.available, !installingUpdate else { return }
+        guard let image = update.download else {
+            NSWorkspace.shared.open(update.page)
+            return
+        }
+        if meetings?.isListening == true {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "update.install.meeting", bundle: .localized)
+            alert.runModal()
+            return
+        }
+        installingUpdate = true
+        let installer = UpdateInstaller(expectation: .init(
+            bundleIdentifier: Bundle.main.bundleIdentifier ?? "dev.rrios.quill",
+            teamIdentifier: QuillSupport.teamIdentifier, currentVersion: Self.runningVersion))
+        let app = Bundle.main.bundleURL
+        Task { @MainActor in
+            defer { installingUpdate = false }
+            do {
+                let version = try await installer.install(image: image, over: app)
+                log.info("updated to \(version); relaunching")
+                UpdateInstaller.relaunch(app)
+            } catch {
+                log.error("one-click update failed (\(error)); opening the disk image")
+                NSWorkspace.shared.open(image)
+            }
+        }
     }
 
     @objc private func skipUpdate() {
@@ -685,6 +745,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             },
             afterReset: { PermissionWatcher.restart() },
             updates: updates,
+            usage: usage,
             checkUpdates: { [weak self] in await self?.checkForUpdates(now: true) },
             downloadUpdate: { [weak self] in self?.downloadUpdate() })
     }
@@ -726,7 +787,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     readiness: environment.readiness,
                     treatLoopbackAsRemote: DebugHooks.treatsLoopbackAsRemote),
                 apps: AppsPaneModel(settings: environment.settings, profiles: environment.profiles),
-                meetings: meetings)
+                meetings: meetings,
+                agents: agents)
         }
         settingsWindow?.show(pane)
     }

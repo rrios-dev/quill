@@ -8,6 +8,10 @@ struct MeetingTranscriptView: View {
     @Bindable var model: MeetingFlowModel
     @State private var flashed: Int?
     @State private var download: TranslationSession.Configuration?
+    /// The sentence being corrected, and its text as typed so far.
+    @State private var editing: Int?
+    @State private var draft = ""
+    @FocusState private var draftFocused: Bool
 
     var body: some View {
         let palette = model.palette
@@ -70,6 +74,10 @@ struct MeetingTranscriptView: View {
             }
             .padding(14)
             Divider()
+            if let notice = model.learnt {
+                learntBanner(notice)
+                Divider()
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
@@ -93,15 +101,21 @@ struct MeetingTranscriptView: View {
                                             .font(.system(size: 11)).foregroundStyle(.tertiary).monospacedDigit()
                                     }
                                     ForEach(turn.lines) { line in
-                                        Text(line.text)
-                                            .font(.system(size: 13))
-                                            .fixedSize(horizontal: false, vertical: true)
-                                            .padding(.horizontal, model.isProposed(line.index) ? 4 : 0)
-                                            .background(model.isProposed(line.index) ? Color.accentColor.opacity(0.16) : .clear,
-                                                        in: .rect(cornerRadius: 4))
-                                            .contextMenu {
-                                                if line.movable { saidByMenu(line: line, from: turn.label, palette: palette) }
-                                            }
+                                        if editing == line.index {
+                                            correction(line)
+                                        } else {
+                                            Text(line.text)
+                                                .font(.system(size: 13))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                                .padding(.horizontal, model.isProposed(line.index) ? 4 : 0)
+                                                .background(model.isProposed(line.index) ? Color.accentColor.opacity(0.16) : .clear,
+                                                            in: .rect(cornerRadius: 4))
+                                                .onTapGesture(count: 2) { startEditing(line) }
+                                                .contextMenu {
+                                                    Button(MeetingCopy.t("meeting.transcript.correct")) { startEditing(line) }
+                                                    if line.movable { saidByMenu(line: line, from: turn.label, palette: palette) }
+                                                }
+                                        }
                                     }
                                     if let translation = model.translation(of: turn) {
                                         Text(translation)
@@ -146,6 +160,59 @@ struct MeetingTranscriptView: View {
                 }
             }
         }
+    }
+
+    private func startEditing(_ line: MeetingFlowModel.Line) {
+        draft = line.text
+        editing = line.index
+        draftFocused = true
+    }
+
+    /// The sentence as a field: Return keeps the correction, Escape drops it.
+    private func correction(_ line: MeetingFlowModel.Line) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField(MeetingCopy.t("meeting.transcript.correct"), text: $draft, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+                .focused($draftFocused)
+                .onSubmit {
+                    model.correct(sentence: line.index, to: draft)
+                    editing = nil
+                }
+                .onExitCommand { editing = nil }
+            Text(MeetingCopy.t("meeting.transcript.correct.hint")).font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+
+    /// What a correction taught, with undo and, when it applies, "for everybody".
+    private func learntBanner(_ notice: MeetingFlowModel.LearntNotice) -> some View {
+        let pairs = notice.pairs.map { "«\($0.heard)» → «\($0.written)»" }.joined(separator: ", ")
+        let owner = notice.owner.map { String(localized: "meeting.learnt.owner \($0)", bundle: .localized) }
+            ?? MeetingCopy.t("meeting.learnt.everybody")
+        return VStack(alignment: .leading, spacing: 6) {
+            Label(String(localized: "meeting.learnt \(pairs) \(owner)", bundle: .localized), systemImage: "character.book.closed")
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(3)
+            if notice.alsoCorrected > 0 {
+                Text(String(localized: "meeting.learnt.also \(notice.alsoCorrected)", bundle: .localized))
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 6) {
+                if !notice.promotable.isEmpty {
+                    Button(MeetingCopy.t("meeting.learnt.global"), action: model.makeCorrectionGlobal)
+                        .buttonStyle(.borderedProminent)
+                        .help(MeetingCopy.t("meeting.learnt.global.help"))
+                }
+                Button(MeetingCopy.t("meeting.learnt.undo"), action: model.undoCorrection)
+                Spacer()
+                Button { model.dismissLearnt() } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(MeetingCopy.t("meeting.learnt.dismiss"))
+            }
+            .controlSize(.small)
+        }
+        .padding(10)
+        .background(Color.accentColor.opacity(0.08))
     }
 
     /// "Said by…": the sentence goes to another voice of the meeting, or to someone the

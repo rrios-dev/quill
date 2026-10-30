@@ -1,4 +1,5 @@
 import AVFAudio
+import CoreAudio
 import Accelerate
 import Foundation
 import Speech
@@ -36,6 +37,14 @@ public final class ListenSession: @unchecked Sendable {
         public var microphoneFirst = false
         /// How long a capture may deliver nothing before it is rebuilt.
         public var stallTimeout: Duration = .seconds(3)
+        /// Decides when "me" may be transcribed (`MicrophoneGate`). The session tells it
+        /// whether the meeting app holds a microphone; the app tells it the rest.
+        public var microphoneGate: MicrophoneGate?
+        /// Record from the microphone the meeting app records from, not the default.
+        public var followsAppMicrophone = true
+        /// How long the microphone's audio waits before it is transcribed, so a mute
+        /// noticed a moment late still covers what was said in that moment.
+        public var gateDelay: Double = 0.6
 
         public init(
             target: ProcessTap.Target,
@@ -71,6 +80,7 @@ public final class ListenSession: @unchecked Sendable {
     private var tapRebuilds = 0
     private let othersLevel = LevelMeter()
     private let meLevel = LevelMeter()
+    private var appMicrophoneLoop: Task<Void, Never>?
 
     /// How loud each channel is right now, 0…1: what the recording indicator breathes
     /// with. Read as often as a frame is drawn; costs a lock.
@@ -184,14 +194,57 @@ public final class ListenSession: @unchecked Sendable {
     private func startMicrophone() throws {
         guard let me = meTranscriber else { return }
         let microphone = MicrophoneCapture(echoCancellation: configuration.echoCancellation)
+        if configuration.followsAppMicrophone, let device = appMicrophone().device {
+            microphone.use(device: device)
+        }
         let origin = startedAt
         let level = meLevel
-        try microphone.start { buffer in
+        let feed = GatedFeed(gate: configuration.microphoneGate, delay: configuration.gateDelay) { buffer, start in
             level.measure(buffer)
-            me.padSilence(upTo: Self.seconds(since: origin) - Double(buffer.frameLength) / buffer.format.sampleRate)
+            me.padSilence(upTo: start)
             me.append(buffer)
         }
-        lock.withLock { self.microphone = microphone }
+        try microphone.start { buffer in
+            feed.push(buffer, start: Self.seconds(since: origin) - Double(buffer.frameLength) / buffer.format.sampleRate)
+        }
+        lock.withLock {
+            self.microphone = microphone
+            self.gatedFeed = feed
+        }
+        startAppMicrophoneLoop()
+    }
+
+    private var gatedFeed: GatedFeed?
+
+    /// What the meeting app does with the microphone now: whether any of its processes
+    /// records, and from which device. Unknown (nil) for a target given by process ids.
+    private func appMicrophone() -> (holds: Bool?, device: AudioDeviceID?) {
+        guard case .bundleIDs(let bundleIDs) = configuration.target else { return (nil, nil) }
+        let processes = ((try? AudioProcesses.all()) ?? []).filter { process in
+            process.bundleID.map { id in bundleIDs.contains { id.hasPrefix($0) } } ?? false
+        }
+        let recording = processes.filter(\.isRunningInput)
+        let device = recording.lazy.compactMap { AudioProcesses.inputDevices(of: $0.objectID).first }.first
+        return (!recording.isEmpty, device)
+    }
+
+    /// Four times a second: does the meeting app still record, and from which microphone?
+    /// Cheap (one Core Audio listing); fast enough that the gate's delay covers it.
+    private func startAppMicrophoneLoop() {
+        guard case .bundleIDs = configuration.target else { return }
+        let gate = configuration.microphoneGate
+        let follows = configuration.followsAppMicrophone
+        appMicrophoneLoop = Task.detached { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let state = self.appMicrophone()
+                gate?.setAppHoldsMicrophone(state.holds)
+                if follows, let device = state.device {
+                    self.lock.withLock { self.microphone }?.use(device: device)
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
     }
 
     /// Every two seconds: is each capture still delivering? A stalled one is rebuilt.
@@ -258,9 +311,12 @@ public final class ListenSession: @unchecked Sendable {
     public func stop() async -> Transcript {
         watchdog?.cancel()
         watchdog = nil
-        let (tap, microphone) = lock.withLock { (self.tap, self.microphone) }
+        appMicrophoneLoop?.cancel()
+        appMicrophoneLoop = nil
+        let (tap, microphone, feed) = lock.withLock { (self.tap, self.microphone, self.gatedFeed) }
         tap?.stop()
         microphone?.stop()
+        feed?.flush()
         for transcriber in transcribers { await transcriber.finish() }
         lock.withLock {
             self.tap = nil
@@ -285,8 +341,10 @@ public final class ListenSession: @unchecked Sendable {
 
     public var diagnostics: [String] {
         let microphone = lock.withLock { self.microphone }
+        let gated = lock.withLock { gatedFeed?.silencedSeconds } ?? 0
         return transcribers.map { "\($0.channel.rawValue): \($0.diagnostics)" }
-            + [microphone.map { "mic: \($0.diagnostics)" } ?? "mic: none", "tap rebuilds: \(tapRebuilds)"]
+            + [microphone.map { "mic: \($0.diagnostics) device=\($0.currentDevice.map(String.init) ?? "default")" } ?? "mic: none",
+               "mic muted: \(String(format: "%.1f", gated)) s", "tap rebuilds: \(tapRebuilds)"]
     }
 
     /// Seconds of audio received per channel: a channel stuck at zero is a capture that
@@ -354,5 +412,77 @@ final class LevelMeter: @unchecked Sendable {
         let decibels = 20 * log10(max(rms, 1e-6))
         let scaled = min(max((decibels + 50) / 40, 0), 1)
         lock.withLock { level = max(scaled, level * 0.82) }
+    }
+}
+
+/// The microphone's blocks, held for `delay` seconds and then fed — or replaced by
+/// silence of the same length when the gate was closed when the block was heard or when
+/// it leaves. Silence, not nothing: the channels are aligned by counting what each was fed.
+///
+/// The delay is what makes a late mute safe: the app's state is read a few times a
+/// second, so the words said between pressing mute and Quill noticing are still waiting
+/// here when it notices. A block is fed only if the gate was open at both ends.
+final class GatedFeed: @unchecked Sendable {
+    private struct Pending {
+        let buffer: AVAudioPCMBuffer
+        let start: Double
+        let mutedWhenHeard: Bool
+    }
+
+    private let gate: MicrophoneGate?
+    private let delay: Double
+    private let deliver: (AVAudioPCMBuffer, Double) -> Void
+    private let lock = NSLock()
+    private var pending: [Pending] = []
+    private var silenced = 0.0
+
+    init(gate: MicrophoneGate?, delay: Double, deliver: @escaping (AVAudioPCMBuffer, Double) -> Void) {
+        self.gate = gate
+        self.delay = gate == nil ? 0 : delay
+        self.deliver = deliver
+    }
+
+    /// Seconds of the microphone replaced by silence so far.
+    var silencedSeconds: Double { lock.withLock { silenced } }
+
+    func push(_ buffer: AVAudioPCMBuffer, start: Double) {
+        let ready: [Pending] = lock.withLock {
+            pending.append(Pending(buffer: buffer, start: start, mutedWhenHeard: gate?.isMuted ?? false))
+            let newest = start + Double(buffer.frameLength) / buffer.format.sampleRate
+            let count = pending.prefix { newest - $0.start >= delay }.count
+            defer { pending.removeFirst(count) }
+            return Array(pending.prefix(count))
+        }
+        release(ready)
+    }
+
+    /// Feeds whatever is still waiting, through the gate as it is now.
+    func flush() {
+        let ready = lock.withLock { () -> [Pending] in
+            defer { pending = [] }
+            return pending
+        }
+        release(ready)
+    }
+
+    private func release(_ blocks: [Pending]) {
+        let mutedNow = gate?.isMuted ?? false
+        for block in blocks {
+            if block.mutedWhenHeard || mutedNow {
+                lock.withLock { silenced += Double(block.buffer.frameLength) / block.buffer.format.sampleRate }
+                deliver(Self.silence(like: block.buffer), block.start)
+            } else {
+                deliver(block.buffer, block.start)
+            }
+        }
+    }
+
+    static func silence(like buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer {
+        guard let silent = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) else { return buffer }
+        silent.frameLength = buffer.frameLength
+        // A new buffer's memory is not guaranteed zeroed.
+        let list = UnsafeMutableAudioBufferListPointer(silent.mutableAudioBufferList)
+        for audio in list { if let data = audio.mData { memset(data, 0, Int(audio.mDataByteSize)) } }
+        return silent
     }
 }

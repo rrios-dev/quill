@@ -80,6 +80,23 @@ rewriting for each kind of reader, which you can tune, test and give examples to
 Make your own, pin a model to a profile, or give an app its default ("in Teams, use Work";
 optionally applied without the picker).
 
+## Agents (Claude Code, Codex)
+
+Quill can be used from Claude Code, Codex or any MCP client: "what was decided in
+yesterday's meeting?", "turn the action items into tickets", "rewrite this with my Work
+profile". Turn it on in **Settings › Agents** and press **Connect**, or register it
+yourself:
+
+```bash
+claude mcp add --scope user quill -- /Applications/Quill.app/Contents/MacOS/quill-mcp
+```
+
+The agent can list and search meetings, read their syntheses and transcripts (with each
+person's name and role), read your focuses and profiles, and ask Quill for a new synthesis
+or a rewrite — those two use your model and the agent asks you first. It cannot record,
+delete or read your keys. Off by default; Settings shows which agent used what, and when.
+What the agent reads goes to that agent's model.
+
 ## Models
 
 Quill does not ship a model and has no server. You choose who writes the minutes and the rewrites:
@@ -108,9 +125,19 @@ example. A flagged result tells you why, and it is never applied without you see
 - API keys live in the macOS Keychain.
 - Each sentence's voiceprint is kept with the meeting, so a voice can be split later; it
   cannot be turned back into speech.
-- No account, no analytics, no telemetry, no server of our own. Release builds log no text.
+- Your microphone is transcribed only while the meeting app has it live: muted in Teams,
+  Zoom or Meet (or with Quill's own switch), nothing you say is written down.
+- The people you name keep a voiceprint per meeting and the words you correct, on your Mac,
+  so the next meeting can propose who is speaking and write their words right.
+- No account. **Usage statistics only if you say yes** (asked once, a switch in Settings →
+  General): once a day, how many times each feature was used, the Quill and macOS versions
+  and your language, with a random id deleted when you switch it off. Never text,
+  transcripts, names or your address. They go to our own server in the EU and nowhere
+  else. Release builds log no text.
 - Once a day Quill asks GitHub for the latest published version, to tell you when there
-  is a new one (switch it off in Settings → General). Nothing of yours is sent.
+  is a new one (switch it off in Settings → General). Nothing of yours is sent. "Update"
+  installs it in one click, only if it is signed by the same developer and notarized by
+  Apple; otherwise the disk image opens as before.
 - Password fields are never read.
 
 ## Requirements

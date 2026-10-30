@@ -7,4 +7,7 @@ public enum QuillSupport {
     /// (README Q1); every user-visible mention goes through this constant, so
     /// renaming the product is one edit.
     public static let productName = "Quill"
+    /// The Developer ID team every release is signed with: an update signed by anyone
+    /// else is refused (J-13).
+    public static let teamIdentifier = "Q4VZ9ZK2TS"
 }

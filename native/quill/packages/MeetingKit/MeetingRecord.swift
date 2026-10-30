@@ -23,6 +23,8 @@ public struct MeetingRecord: Codable, Identifiable, Hashable, Sendable {
     /// it is done once.
     public var translations: [String: String]?
     public var translationLanguage: String?
+    /// Voice label → people the user said it is not: proposals not to make again.
+    public var rejectedPeople: [String: [UUID]]?
 
     public init(
         id: UUID = UUID(),
@@ -114,13 +116,16 @@ public struct SynthesisRecord: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-/// Someone heard in meetings, remembered with their usual role.
+/// Someone heard in meetings, remembered with their usual role and their voice.
 public struct Person: Codable, Identifiable, Hashable, Sendable {
     public var id: UUID
     public var name: String
     public var roleID: String?
     public var meetings: Int
     public var lastSeen: Date
+    /// One voiceprint per meeting where the user named them (`VoiceRecognition`): what
+    /// lets the next meeting propose them. Nil for people remembered before 1.3.
+    public var voices: [VoiceSample]?
 
     public init(id: UUID = UUID(), name: String, roleID: String? = nil, meetings: Int = 0, lastSeen: Date = Date()) {
         self.id = id

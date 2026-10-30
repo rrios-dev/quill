@@ -1,4 +1,6 @@
 import AVFAudio
+import CoreAudio
+import Accelerate
 import Foundation
 
 /// The user's own voice, from the microphone.
@@ -31,6 +33,8 @@ public final class MicrophoneCapture: @unchecked Sendable {
     private var onBuffer: (@Sendable (AVAudioPCMBuffer) -> Void)?
     private var observer: NSObjectProtocol?
     private var stopped = false
+    private var channelPeaks: [Float] = []
+    private var device: AudioDeviceID?
 
     public init(echoCancellation: Bool = true) {
         self.echoCancellation = echoCancellation
@@ -41,8 +45,22 @@ public final class MicrophoneCapture: @unchecked Sendable {
     public var diagnostics: String {
         lock.lock()
         defer { lock.unlock() }
-        let described = format.map { "\($0.sampleRate) Hz \($0.channelCount) ch" } ?? "none"
-        return "buffers=\(buffers) restarts=\(restarts) format=\(described) vp=\(voiceProcessing) running=\(engine.isRunning)"
+        let described = format.map { "\($0.sampleRate) Hz \($0.channelCount) ch layout=\($0.channelLayout.map { String($0.layoutTag, radix: 16) } ?? "none")" } ?? "none"
+        let peaks = channelPeaks.map { String(format: "%.0f", 20 * log10(max($0, 1e-6))) }.joined(separator: "/")
+        return "buffers=\(buffers) restarts=\(restarts) format=\(described) vp=\(voiceProcessing) running=\(engine.isRunning) peakRMSdB=\(peaks)"
+    }
+
+    /// The input device this capture records from: the one the meeting app uses, else the
+    /// system default (nil).
+    public var currentDevice: AudioDeviceID? { lock.withLock { device } }
+
+    /// Records from `device` from now on (nil: the system default). The meeting app's
+    /// microphone, not the default: on the owner's Mac the default is a webcam across the
+    /// desk while the call runs on a headset, and "me" came out empty (2026-10-30).
+    public func use(device: AudioDeviceID?) {
+        guard lock.withLock({ self.device }) != device else { return }
+        lock.withLock { self.device = device }
+        restart()
     }
 
     /// Blocks delivered so far; the session's watchdog reads it to tell a stalled
@@ -85,6 +103,11 @@ public final class MicrophoneCapture: @unchecked Sendable {
 
     private func configureAndStart() throws {
         let input = engine.inputNode
+        if let device = lock.withLock({ self.device }) {
+            // A device that cannot be chosen (gone, or refused under voice processing)
+            // leaves the default: better the wrong microphone than none.
+            try? input.auAudioUnit.setDeviceID(device)
+        }
         // Decided on every start: a restart is usually the output device changing.
         let wanted = echoCancellation && OutputRoute.current() == .speakers
         if input.isVoiceProcessingEnabled != wanted {
@@ -106,6 +129,15 @@ public final class MicrophoneCapture: @unchecked Sendable {
             self.lock.lock()
             self.buffers += 1
             self.format = buffer.format
+            if let data = buffer.floatChannelData {
+                let count = Int(buffer.format.channelCount)
+                if self.channelPeaks.count != count { self.channelPeaks = [Float](repeating: 0, count: count) }
+                for channel in 0..<count {
+                    var rms: Float = 0
+                    vDSP_rmsqv(data[channel], 1, &rms, vDSP_Length(buffer.frameLength))
+                    self.channelPeaks[channel] = max(self.channelPeaks[channel], rms)
+                }
+            }
             self.lock.unlock()
             guard let copy = buffer.copied() else { return }
             self.onBuffer?(copy)

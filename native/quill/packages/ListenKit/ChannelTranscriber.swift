@@ -1,4 +1,5 @@
 import AVFAudio
+import Accelerate
 import CoreMedia
 import Foundation
 import Speech
@@ -25,11 +26,12 @@ public final class ChannelTranscriber: @unchecked Sendable {
     private var framesFed: AVAudioFramePosition = 0
     private var received = 0
     private var conversionFailures = 0
+    private var convertedPeak: Float = 0
 
     public var diagnostics: String {
         lock.lock()
         defer { lock.unlock() }
-        return "received=\(received) conversionFailures=\(conversionFailures) target=\(targetFormat.sampleRate) Hz \(targetFormat.channelCount) ch"
+        return "received=\(received) conversionFailures=\(conversionFailures) convertedPeakRMSdB=\(String(format: "%.0f", 20 * log10(max(convertedPeak, 1e-6)))) target=\(targetFormat.sampleRate) Hz \(targetFormat.channelCount) ch"
     }
     private var resultsTask: Task<Void, Never>?
 
@@ -85,13 +87,24 @@ public final class ChannelTranscriber: @unchecked Sendable {
         defer { lock.unlock() }
         received += 1
         if converterSource != buffer.format {
-            converter = AVAudioConverter(from: buffer.format, to: targetFormat)
+            converter = Self.converter(from: buffer.format, to: targetFormat)
             converterSource = buffer.format
         }
         guard let converter, let converted = Self.convert(buffer, with: converter, to: targetFormat)
         else {
             conversionFailures += 1
             return
+        }
+        if let data = converted.floatChannelData {
+            var rms: Float = 0
+            vDSP_rmsqv(data[0], 1, &rms, vDSP_Length(converted.frameLength))
+            convertedPeak = max(convertedPeak, rms)
+        } else if let data = converted.int16ChannelData {
+            var samples = [Float](repeating: 0, count: Int(converted.frameLength))
+            vDSP_vflt16(data[0], 1, &samples, 1, vDSP_Length(converted.frameLength))
+            var rms: Float = 0
+            vDSP_rmsqv(samples, 1, &rms, vDSP_Length(samples.count))
+            convertedPeak = max(convertedPeak, rms / Float(Int16.max))
         }
         let start = CMTime(value: framesFed, timescale: CMTimeScale(targetFormat.sampleRate))
         framesFed += AVAudioFramePosition(converted.frameLength)
@@ -141,6 +154,20 @@ public final class ChannelTranscriber: @unchecked Sendable {
             guard !piece.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
             return TimedWord(text: piece, start: range.start.seconds, end: range.end.seconds)
         }
+    }
+
+    /// A converter that keeps the first channel when the source has more than the target.
+    ///
+    /// Voice processing hands the microphone over as three discrete channels, the
+    /// processed voice in the first; `AVAudioConverter` maps discrete channels to mono as
+    /// silence. Measured on 2026-10-30: every meeting on speakers since 2026-10-08 was
+    /// saved without one sentence of "me", and the converter's output was all zeros.
+    static func converter(from source: AVAudioFormat, to target: AVAudioFormat) -> AVAudioConverter? {
+        let converter = AVAudioConverter(from: source, to: target)
+        if source.channelCount > target.channelCount {
+            converter?.channelMap = (0..<Int(target.channelCount)).map { NSNumber(value: $0) }
+        }
+        return converter
     }
 
     static func convert(

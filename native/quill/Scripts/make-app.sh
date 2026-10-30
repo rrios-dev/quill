@@ -34,12 +34,16 @@ log() { echo "$@" >&2; }
 cd "$ROOT"
 log "▸ Building ($CONFIGURATION)…"
 swift build -c "$CONFIGURATION" --product Quill >&2
+# The MCP server agents launch (docs/initiatives/mac-apps-mcp/DESIGN.md), shipped next to
+# the app's executable so it always matches the app's data format.
+swift build -c "$CONFIGURATION" --product quill-mcp >&2
 BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
 
 log "▸ Assembling the bundle…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Quill" "$APP/Contents/MacOS/Quill"
+cp "$BIN_DIR/quill-mcp" "$APP/Contents/MacOS/quill-mcp"
 cp "$ROOT/apps/Quill/Info.plist" "$APP/Contents/Info.plist"
 if [ -n "$BUNDLE_ID" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Contents/Info.plist"
@@ -95,7 +99,8 @@ fi
 log "▸ Signing with: ${CODESIGN_NAME:-$CODESIGN_IDENTITY}"
 
 # --options runtime: the Hardened Runtime notarization requires. No --deep (Apple
-# advises against it; there are no nested components to sign today).
+# advises against it): the one nested executable, quill-mcp, is signed on its own first,
+# inside out, without the app's entitlements — it records no audio.
 # Release builds carry a secure timestamp, which notarization requires. Debug builds
 # skip it so they build offline; the designated requirement — what the grant is tied
 # to — is the same either way.
@@ -105,6 +110,9 @@ if [ "$CONFIGURATION" = "release" ]; then
 else
   SIGN_ARGS+=(--timestamp=none)
 fi
+HELPER_ARGS=(--force --options runtime)
+if [ "$CONFIGURATION" = "release" ]; then HELPER_ARGS+=(--timestamp); else HELPER_ARGS+=(--timestamp=none); fi
+codesign "${HELPER_ARGS[@]}" --sign "$CODESIGN_IDENTITY" "$APP/Contents/MacOS/quill-mcp" >&2
 codesign "${SIGN_ARGS[@]}" --sign "$CODESIGN_IDENTITY" "$APP" >&2
 
 # Check, do not trust, that the runtime flag is on the binary. Retried: right after a

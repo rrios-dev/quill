@@ -38,6 +38,31 @@ public final class MeetingStore: @unchecked Sendable {
             self.roles = roles
             self.focuses = focuses
         }
+
+        /// The app's names for the built-ins, from a string table with the
+        /// `role.builtin.*` and `focus.builtin.*` keys — the app's own, which the agent
+        /// server inside the same bundle reads too.
+        public init(strings bundle: Bundle) {
+            func entry(_ key: String, _ detail: String) -> Entry {
+                Entry(name: bundle.localizedString(forKey: key, value: nil, table: nil),
+                      detail: bundle.localizedString(forKey: key + detail, value: nil, table: nil))
+            }
+            self.init(
+                roles: [
+                    "product-owner": entry("role.builtin.productOwner", ".summary"),
+                    "tech-lead": entry("role.builtin.techLead", ".summary"),
+                    "support": entry("role.builtin.support", ".summary"),
+                    "engineer": entry("role.builtin.engineer", ".summary"),
+                    "client": entry("role.builtin.client", ".summary"),
+                    "vendor": entry("role.builtin.vendor", ".summary"),
+                ],
+                focuses: [
+                    "work": entry("focus.builtin.work", ".objective"),
+                    "analysis": entry("focus.builtin.analysis", ".objective"),
+                    "brief": entry("focus.builtin.brief", ".objective"),
+                ]
+            )
+        }
     }
 
     public var builtInText = BuiltInText()
@@ -52,6 +77,7 @@ public final class MeetingStore: @unchecked Sendable {
     var peopleFile: URL { directory.appendingPathComponent("people.json") }
     var rolesFile: URL { directory.appendingPathComponent("roles.json") }
     var focusesFile: URL { directory.appendingPathComponent("focuses.json") }
+    var vocabularyFile: URL { directory.appendingPathComponent("vocabulary.json") }
 
     // MARK: Meetings
 
@@ -155,8 +181,148 @@ public final class MeetingStore: @unchecked Sendable {
         try write(all, to: peopleFile)
     }
 
+    /// Samples a person keeps: the most recent meetings win.
+    public static let voiceSamplesPerPerson = 12
+
+    /// Keeps `voiceprint` as what `person` sounded like in `meeting`, replacing what was
+    /// kept for that meeting before.
+    public func learnVoice(_ voiceprint: Voiceprint, of person: UUID, in meeting: UUID) throws {
+        var all = people()
+        guard let index = all.firstIndex(where: { $0.id == person }) else { return }
+        var voices = (all[index].voices ?? []).filter { $0.meetingID != meeting }
+        voices.append(VoiceSample(meetingID: meeting, voiceprint: voiceprint))
+        all[index].voices = Array(voices.suffix(Self.voiceSamplesPerPerson))
+        try write(all, to: peopleFile)
+    }
+
+    /// "This is not them": forgets the samples of `person` that sound like `voiceprint`
+    /// (`VoiceRecognition.sameVoice`). They came from a meeting where another voice was
+    /// given this person's name, and they are why the proposal was made.
+    public func unlearnVoice(like voiceprint: Voiceprint, of person: UUID) throws {
+        var all = people()
+        guard let index = all.firstIndex(where: { $0.id == person }), let voices = all[index].voices else { return }
+        let kept = voices.filter { VoiceRecognition.cosine($0.voiceprint.values, voiceprint.values) < VoiceRecognition.sameVoice }
+        guard kept.count != voices.count else { return }
+        all[index].voices = kept
+        try write(all, to: peopleFile)
+    }
+
+    /// Learns the voices of people already named in saved meetings that kept voiceprints
+    /// (1.2.0 on): the directory starts out recognising them. Meetings already learnt are
+    /// skipped, so it can run at every launch. Returns how many samples were added.
+    @discardableResult
+    public func learnVoicesFromHistory() throws -> Int {
+        var all = people()
+        var added = 0
+        for meeting in meetings() {
+            let voices = VoiceRecognition.voices(of: meeting.transcript)
+            for (label, personID) in meeting.people {
+                guard let voice = voices[label], let index = all.firstIndex(where: { $0.id == personID }),
+                      !(all[index].voices ?? []).contains(where: { $0.meetingID == meeting.id }) else { continue }
+                all[index].voices = Array(((all[index].voices ?? []) + [VoiceSample(meetingID: meeting.id, voiceprint: voice)])
+                    .suffix(Self.voiceSamplesPerPerson))
+                added += 1
+            }
+        }
+        if added > 0 { try write(all, to: peopleFile) }
+        return added
+    }
+
+    /// Who each unnamed voice of `meeting` may be (`VoiceRecognition.suggestions`).
+    public func suggestions(for meeting: MeetingRecord) -> [String: VoiceRecognition.Suggestion] {
+        VoiceRecognition.suggestions(voices: VoiceRecognition.voices(of: meeting.transcript), people: people(),
+                                     named: meeting.people, rejected: meeting.rejectedPeople ?? [:])
+    }
+
+    /// Named voices of `meeting` that sound like someone else (`VoiceRecognition.conflicts`).
+    public func conflicts(for meeting: MeetingRecord) -> [String: VoiceRecognition.Suggestion] {
+        VoiceRecognition.conflicts(voices: VoiceRecognition.voices(of: meeting.transcript), people: people(),
+                                   named: meeting.people, in: meeting.id)
+    }
+
+    /// Forgets what `person` sounded like in `meeting`: the voice there was not them.
+    public func forgetVoice(of person: UUID, in meeting: UUID) throws {
+        var all = people()
+        guard let index = all.firstIndex(where: { $0.id == person }) else { return }
+        all[index].voices = all[index].voices?.filter { $0.meetingID != meeting }
+        try write(all, to: peopleFile)
+    }
+
     public func forget(person id: UUID) throws {
         try write(people().filter { $0.id != id }, to: peopleFile)
+    }
+
+    // MARK: Vocabulary
+
+    public func vocabulary() -> [VocabularyEntry] {
+        read([VocabularyEntry].self, from: vocabularyFile) ?? []
+    }
+
+    /// What a correction taught, for the interface to say so.
+    public struct Learnt: Equatable, Sendable {
+        public let entry: VocabularyEntry
+        /// The same correction is already kept for someone else: it can go global (J-04).
+        public let alsoFor: [VocabularyEntry.Scope]
+    }
+
+    /// Keeps `heard` → `written` for whoever said it; the same correction again counts
+    /// once more. Returns what was kept.
+    @discardableResult
+    public func learn(heard: String, written: String, scope: VocabularyEntry.Scope, at date: Date = Date()) throws -> Learnt {
+        var all = vocabulary()
+        let entry: VocabularyEntry
+        if let index = all.firstIndex(where: { $0.scope == scope && $0.same(as: heard, written) })
+            ?? all.firstIndex(where: { $0.scope == .global && $0.same(as: heard, written) }) {
+            all[index].uses += 1
+            entry = all[index]
+        } else {
+            entry = VocabularyEntry(heard: heard, written: written, scope: scope, createdAt: date)
+            all.append(entry)
+        }
+        try write(all, to: vocabularyFile)
+        let others = all.filter { $0.id != entry.id && $0.scope != .global && $0.same(as: heard, written) }.map(\.scope)
+        return Learnt(entry: entry, alsoFor: entry.scope == .global ? [] : others)
+    }
+
+    /// Makes a correction kept for several people one for everybody.
+    public func makeGlobal(heard: String, written: String) throws {
+        var all = vocabulary()
+        let matching = all.filter { $0.same(as: heard, written) }
+        guard !matching.isEmpty else { return }
+        all.removeAll { $0.same(as: heard, written) }
+        all.append(VocabularyEntry(heard: heard, written: written, scope: .global,
+                                   uses: matching.map(\.uses).reduce(0, +),
+                                   createdAt: matching.map(\.createdAt).min() ?? Date()))
+        try write(all, to: vocabularyFile)
+    }
+
+    public func forgetVocabulary(_ id: UUID) throws {
+        try write(vocabulary().filter { $0.id != id }, to: vocabularyFile)
+    }
+
+    /// The entries that apply to words said by `scope`: everybody's and their own.
+    public func vocabulary(for scope: VocabularyEntry.Scope?) -> [VocabularyEntry] {
+        vocabulary().filter { $0.scope == .global || (scope != nil && $0.scope == scope) }
+    }
+
+    /// `meeting` with the vocabulary written into every sentence, each by the entries of
+    /// whoever said it. Changed sentences lose their word timings, which no longer match.
+    public func applyingVocabulary(to meeting: MeetingRecord) -> MeetingRecord {
+        let all = vocabulary()
+        guard !all.isEmpty else { return meeting }
+        var result = meeting
+        for index in result.transcript.segments.indices {
+            let segment = result.transcript.segments[index]
+            let label = segment.speaker ?? segment.channel.rawValue
+            let scope = meeting.vocabularyScope(of: label)
+            let entries = all.filter { $0.scope == .global || (scope != nil && $0.scope == scope) }
+            let text = Vocabulary.apply(entries, to: segment.text)
+            if text != segment.text {
+                result.transcript.segments[index].text = text
+                result.transcript.segments[index].words = []
+            }
+        }
+        return result
     }
 
     // MARK: Roles and focuses

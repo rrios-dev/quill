@@ -49,6 +49,10 @@ final class MeetingWindowController: NSObject, NSWindowDelegate {
 
     func reloadFocuses() { model.reload() }
 
+    /// The window's meeting model, so an agent's synthesis lands in the window already
+    /// showing the meeting instead of racing it on disk.
+    var flowModel: MeetingFlowModel { model }
+
     #if DEBUG
     var debugModel: MeetingFlowModel { model }
     #endif
@@ -333,6 +337,20 @@ private struct PersonCard: View {
                     .buttonStyle(.plain)
                     .help(MeetingCopy.t("synthesis.participant.help"))
                 }
+            }
+            if let person = row.suggestion {
+                VoiceProposal(text: String(localized: "people.voice.suggestion \(model.personTitle(person))", bundle: .localized),
+                              accept: MeetingCopy.t("people.voice.yes"), reject: MeetingCopy.t("people.voice.no"),
+                              tint: entry.color,
+                              onAccept: { model.acceptSuggestion(for: row.label) },
+                              onReject: { model.rejectSuggestion(for: row.label) })
+            } else if let person = row.soundsLike {
+                VoiceProposal(text: String(localized: "people.voice.conflict \(person.name)", bundle: .localized),
+                              accept: String(localized: "people.voice.isOther \(person.name)", bundle: .localized),
+                              reject: MeetingCopy.t("people.voice.keep"),
+                              tint: .orange,
+                              onAccept: { model.acceptSuggestion(for: row.label) },
+                              onReject: { model.rejectSuggestion(for: row.label) })
             }
             if row.roleRemembered {
                 Text(MeetingCopy.t("people.role.remembered")).font(.system(size: 11)).foregroundStyle(.secondary)
@@ -650,5 +668,31 @@ private struct AnalysisControls: View {
         .keyboardShortcut(.return, modifiers: [.command])
         .buttonStyle(.borderedProminent)
         .disabled(model.running)
+    }
+}
+
+/// A question about a voice with two answers in place: "Is this Fran?" or "This voice
+/// sounds like Hugo" (VOICES.md S2, J-03).
+private struct VoiceProposal: View {
+    let text: String
+    let accept: String
+    let reject: String
+    let tint: Color
+    let onAccept: () -> Void
+    let onReject: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(text, systemImage: "waveform")
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(3)
+            HStack(spacing: 6) {
+                Button(accept, action: onAccept).buttonStyle(.borderedProminent).tint(tint)
+                Button(reject, action: onReject).buttonStyle(.bordered)
+            }
+            .controlSize(.small)
+        }
+        .padding(8)
+        .background(tint.opacity(0.1), in: .rect(cornerRadius: 8))
     }
 }

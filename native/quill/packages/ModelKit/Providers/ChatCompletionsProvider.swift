@@ -87,13 +87,45 @@ public struct ChatCompletionsProvider: ModelProvider {
         let provider = id
         return GenerationStream.make(provider: provider, timeout: request.options.timeout) { continuation in
             let started = ContinuousClock.now
-            let urlRequest = try makeRequest(path: "chat/completions", method: "POST", body: try encodeBody(request))
-            let (response, lines) = try await transport.lines(for: urlRequest)
-
-            guard (200..<300).contains(response.statusCode) else {
+            var dialect = Dialect()
+            var opened: (response: HTTPURLResponse, lines: AsyncThrowingStream<String, any Error>)?
+            // A refusal of the request's shape is answered once per kind, before anything
+            // was streamed: OpenRouter drops what a model does not take, OpenAI refuses it.
+            while opened == nil {
+                let urlRequest = try makeRequest(path: "chat/completions", method: "POST",
+                                                 body: try encodeBody(request, dialect: dialect))
+                let (response, lines) = try await transport.lines(for: urlRequest)
+                if (200..<300).contains(response.statusCode) {
+                    opened = (response, lines)
+                    break
+                }
                 var body = ""
                 for try await line in lines { body += line + "\n" }
+                if let adjusted = dialect.adjusting(after: response.statusCode, body: body) {
+                    dialect = adjusted
+                    continue
+                }
                 throw Self.mapHTTPError(status: response.statusCode, body: Data(body.utf8), headers: response, provider: provider)
+            }
+            guard let lines = opened?.lines else { return }
+
+            if !dialect.streams {
+                // One JSON answer instead of events.
+                var body = ""
+                for try await line in lines { body += line + "\n" }
+                let answer: Completion
+                do {
+                    answer = try JSONDecoder().decode(Completion.self, from: Data(body.utf8))
+                } catch {
+                    throw ProviderError(.malformedResponse, "Unreadable answer: \(body.prefix(200))", provider: provider)
+                }
+                let text = answer.choices.first?.message?.content ?? ""
+                if !text.isEmpty { continuation.yield(.delta(text)) }
+                continuation.yield(.completed(GenerationResult(
+                    text: text, provider: provider, model: answer.model.map(ModelID.init(rawValue:)) ?? request.model,
+                    usage: answer.usage.map { TokenUsage(inputTokens: $0.promptTokens, outputTokens: $0.completionTokens) },
+                    latency: started.elapsed, finishReason: FinishReason(chatCompletions: answer.choices.first?.finishReason))))
+                return
             }
 
             var text = ""
@@ -137,7 +169,33 @@ public struct ChatCompletionsProvider: ModelProvider {
 
     // MARK: - Request building
 
-    func encodeBody(_ request: GenerationRequest) throws -> Data {
+    /// What a server turned out not to accept, learnt from its refusal (`stream`).
+    struct Dialect: Equatable {
+        /// Send `temperature`. OpenAI's reasoning models refuse any value but the default
+        /// ("GPT-6 Luna": "remove temperature when reasoning effort is not none"), and a
+        /// colleague's synthesis through OpenAI failed on every meeting (2026-10-30)
+        /// while the same model through OpenRouter, which drops the field, worked.
+        var sendsTemperature = true
+        /// Stream the answer. OpenAI streams some models only to verified organisations.
+        var streams = true
+
+        /// The dialect to retry with after `status` and `body`, or nil when the refusal
+        /// is not about something it can leave out.
+        func adjusting(after status: Int, body: String) -> Dialect? {
+            guard status == 400 else { return nil }
+            let text = body.lowercased()
+            var next = self
+            if sendsTemperature, text.contains("temperature"),
+               ["unsupported", "not supported", "does not support", "only the default"].contains(where: text.contains) {
+                next.sendsTemperature = false
+            } else if streams, text.contains("stream"), text.contains("verif") {
+                next.streams = false
+            }
+            return next == self ? nil : next
+        }
+    }
+
+    func encodeBody(_ request: GenerationRequest, dialect: Dialect = Dialect()) throws -> Data {
         var messages: [[String: String]] = [["role": "system", "content": request.instructions]]
         for example in request.examples {
             messages.append(["role": "user", "content": example.input])
@@ -148,10 +206,10 @@ public struct ChatCompletionsProvider: ModelProvider {
         var body: [String: Any] = [
             "model": request.model.rawValue,
             "messages": messages,
-            "stream": true,
-            "stream_options": ["include_usage": true],
+            "stream": dialect.streams,
         ]
-        if let temperature = request.options.temperature { body["temperature"] = temperature }
+        if dialect.streams { body["stream_options"] = ["include_usage": true] }
+        if dialect.sendsTemperature, let temperature = request.options.temperature { body["temperature"] = temperature }
         if let maxTokens = request.options.maxOutputTokens { body[endpoint.maxTokensField] = maxTokens }
         if let routing = endpoint.routingPreferences { body["provider"] = routing }
         return try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
@@ -255,6 +313,22 @@ public struct ChatCompletionsProvider: ModelProvider {
             }
         }
         let data: [Entry]
+    }
+
+    /// A whole answer, when the request did not stream.
+    struct Completion: Decodable {
+        struct Choice: Decodable {
+            struct Message: Decodable { let content: String? }
+            let message: Message?
+            let finishReason: String?
+            enum CodingKeys: String, CodingKey {
+                case message
+                case finishReason = "finish_reason"
+            }
+        }
+        let model: String?
+        let choices: [Choice]
+        let usage: StreamChunk.Usage?
     }
 
     struct StreamChunk: Decodable {

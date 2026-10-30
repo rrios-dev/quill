@@ -9,6 +9,7 @@ struct MeetingsPane: View {
     @State private var confirmingDelete = false
     @State private var meetingCount = 0
     @State private var peopleCount = 0
+    @State private var vocabulary: [VocabularyEntry] = []
 
     static let retentions = [7, 30, 90, 365]
 
@@ -56,6 +57,24 @@ struct MeetingsPane: View {
                     .disabled(peopleCount == 0)
                 }
             }
+            Section(MeetingCopy.t("pane.vocabulary")) {
+                if vocabulary.isEmpty {
+                    Text(MeetingCopy.t("pane.vocabulary.empty")).font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(vocabulary) { entry in
+                    LabeledContent {
+                        Button(role: .destructive) {
+                            try? coordinator.store.forgetVocabulary(entry.id)
+                            refreshCounts()
+                        } label: { Image(systemName: "trash") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(String(localized: "pane.vocabulary.forget \(entry.written)", bundle: .localized))
+                    } label: {
+                        Text("«\(entry.heard)» → «\(entry.written)»")
+                        Text(owner(of: entry.scope))
+                    }
+                }
+            }
             Section(MeetingCopy.t("pane.history")) {
                 Picker(MeetingCopy.t("pane.retention"), selection: bind(\.retentionDays)) {
                     ForEach(Self.retentions, id: \.self) { days in
@@ -83,6 +102,17 @@ struct MeetingsPane: View {
     private func refreshCounts() {
         meetingCount = coordinator.store.summaries().count
         peopleCount = coordinator.store.people().count
+        vocabulary = coordinator.store.vocabulary().sorted { $0.written.localizedCompare($1.written) == .orderedAscending }
+    }
+
+    /// Whose words an entry corrects, as the list says it.
+    private func owner(of scope: VocabularyEntry.Scope) -> String {
+        switch scope {
+        case .global: MeetingCopy.t("pane.vocabulary.global")
+        case .me: MeetingCopy.t("pane.vocabulary.me")
+        case .person(let id):
+            coordinator.store.people().first { $0.id == id }?.name ?? MeetingCopy.t("pane.vocabulary.forgotten")
+        }
     }
 
     private func bind<Value>(_ path: WritableKeyPath<MeetingPreferences, Value>) -> Binding<Value> {

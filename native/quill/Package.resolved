@@ -1,5 +1,5 @@
 {
-  "originHash" : "59ede487c680d444c295b4f6a8d12b852a101d987f1dafa327424562f2a596d4",
+  "originHash" : "7bc554553bedbc9375e5340331a61603dfa3f5210650337c339f30547e2f5b8d",
   "pins" : [
     {
       "identity" : "fluidaudio",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "0b1f46289fe27d95b5e66ad8be46e64f5ee02ae7",
         "version" : "0.17.5"
+      }
+    },
+    {
+      "identity" : "mcpkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/rrios-dev/mcpkit.git",
+      "state" : {
+        "revision" : "acb0f469dfe165a90aca19dc88cf9bdfd004f6e2",
+        "version" : "0.2.0"
       }
     }
   ],
