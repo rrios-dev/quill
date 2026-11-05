@@ -126,6 +126,47 @@ public enum VoiceRecognition {
         return result
     }
 
+    /// Voices that hold two people of the directory (VOICES.md S5): `Transcript.knownSplit`
+    /// against everyone's prints from other meetings — this meeting's own sample of a merged
+    /// voice is a blend of both. People the user said a voice is not are left out for it.
+    ///
+    /// A voice already named keeps its person: when the name is the person the split would
+    /// move out, the sides swap, so the name stays on its sentences; a voice named as
+    /// someone neither side is gets no split (`conflicts` speaks for it).
+    public static func splits(
+        transcript: Transcript,
+        people: [Person],
+        named: [String: UUID],
+        rejected: [String: [UUID]] = [:],
+        in meeting: UUID,
+        rule: Transcript.KnownSplitRule = .standard
+    ) -> [String: KnownSplit<UUID>] {
+        var profiles: [UUID: [Voiceprint]] = [:]
+        for person in people {
+            let prints = (person.voices ?? []).filter { $0.meetingID != meeting }.map(\.voiceprint)
+            if !prints.isEmpty { profiles[person.id] = prints }
+        }
+        let labels = Set(transcript.segments.compactMap { $0.channel == .others ? $0.speaker : nil })
+        var result: [String: KnownSplit<UUID>] = [:]
+        for label in labels {
+            let allowed = profiles.filter { !(rejected[label] ?? []).contains($0.key) }
+            guard let split = transcript.knownSplit(of: label, profiles: allowed, rule: rule) else { continue }
+            switch named[label] {
+            case nil, split.kept?:
+                result[label] = split
+            case split.other?:
+                let measured = transcript.segments.indices.filter {
+                    transcript.segments[$0].speaker == label && transcript.segments[$0].voiceprint != nil
+                }
+                result[label] = KnownSplit(kept: split.other, other: split.kept,
+                                           moved: measured.filter { !split.moved.contains($0) })
+            default:
+                continue
+            }
+        }
+        return result
+    }
+
     static func normalized(_ vector: [Float]) -> [Float] {
         let norm = vector.reduce(0) { $0 + $1 * $1 }.squareRoot()
         return norm > 0 ? vector.map { $0 / norm } : vector

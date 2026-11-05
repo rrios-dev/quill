@@ -126,3 +126,52 @@ struct VoiceConflictTests {
         #expect(store.conflicts(for: today).isEmpty)
     }
 }
+
+/// A voice holding two people of the directory, split by their stored prints (VOICES.md S5).
+struct KnownSplitTests {
+    private func makeStore() throws -> MeetingStore {
+        try MeetingStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    }
+
+    /// Fran and Hugo merged into "speaker-1": three sentences of Fran, two of Hugo.
+    static func mergedMeeting() -> MeetingRecord {
+        var record = VoiceRecognitionTests.meeting(["speaker-1": 0, "speaker-2": 1])
+        record.transcript.segments.removeAll { $0.speaker == "speaker-2" && $0.start == 15 }
+        record.transcript.move(record.transcript.segments.indices, to: "speaker-1")
+        return record
+    }
+
+    @Test func aVoiceHoldingTwoKnownPeopleIsSplitBetweenThem() throws {
+        let store = try makeStore()
+        let fran = try store.remember(name: "Fran", roleID: nil)
+        let hugo = try store.remember(name: "Hugo", roleID: nil)
+        try store.learnVoice(VoiceRecognitionTests.print(0), of: fran.id, in: UUID())
+        try store.learnVoice(VoiceRecognitionTests.print(1), of: hugo.id, in: UUID())
+        var meeting = Self.mergedMeeting()
+        #expect(store.splits(for: meeting)["speaker-1"] == KnownSplit(kept: fran.id, other: hugo.id, moved: [3, 4]))
+
+        // Named Hugo: the name stays on Hugo's sentences, Fran's move out.
+        meeting.people = ["speaker-1": hugo.id]
+        #expect(store.splits(for: meeting)["speaker-1"] == KnownSplit(kept: hugo.id, other: fran.id, moved: [0, 1, 2]))
+
+        // Named as somebody else entirely: no split, that is a conflict.
+        meeting.people = ["speaker-1": UUID()]
+        #expect(store.splits(for: meeting).isEmpty)
+
+        // "It is not Hugo in here": not proposed again.
+        meeting.people = [:]
+        meeting.rejectedPeople = ["speaker-1": [hugo.id]]
+        #expect(store.splits(for: meeting).isEmpty)
+    }
+
+    @Test func aSplitIgnoresTheSampleThisMeetingLeft() throws {
+        let store = try makeStore()
+        let fran = try store.remember(name: "Fran", roleID: nil)
+        let hugo = try store.remember(name: "Hugo", roleID: nil)
+        let meeting = Self.mergedMeeting()
+        try store.learnVoice(VoiceRecognitionTests.print(0), of: fran.id, in: UUID())
+        // Hugo is known only from this meeting: nothing independent to split by.
+        try store.learnVoice(VoiceRecognitionTests.print(1), of: hugo.id, in: meeting.id)
+        #expect(store.splits(for: meeting).isEmpty)
+    }
+}

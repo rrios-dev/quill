@@ -175,7 +175,7 @@ let package = Package(
         // fetchers are Python and the gate is data, both excluded from the target.
         .executableTarget(
             name: "MeetingBench",
-            dependencies: ["ListenKit", "SpeakerKit"],
+            dependencies: ["ListenKit", "SpeakerKit", "MeetingKit"],
             path: "tools/MeetingBench",
             exclude: ["fetch_corpus.py", "fetch_ami.py", "remote_zip.py", "gate.json", "owner-script.txt"],
             swiftSettings: [.swiftLanguageMode(.v6)]

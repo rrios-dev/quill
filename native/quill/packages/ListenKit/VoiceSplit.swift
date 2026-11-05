@@ -71,6 +71,9 @@ public enum VoiceSplit {
         }
     }
 
+    /// `vector` scaled to length one, for comparing prints by their direction.
+    public static func unit(_ vector: [Float]) -> [Float] { normalized(vector) }
+
     static func normalized(_ vector: [Float]) -> [Float] {
         let norm = vector.reduce(0) { $0 + $1 * $1 }.squareRoot()
         return norm > 0 ? vector.map { $0 / norm } : vector

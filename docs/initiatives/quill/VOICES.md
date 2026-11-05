@@ -29,6 +29,7 @@ Decisions: J-01–J-08 in the owner's decision journal (JOURNAL.md, kept out of 
 | S2 | Voice profiles (J-02): own id, colour, usual role, voiceprint samples, migration from name-keyed `Person`; after a meeting, "¿Es Jesús · Product Owner?" (J-03) with accept / "no, es otra persona"; voiceprints deletable in Settings | C5: recognition rate and false suggestions at the chosen threshold; store migration tests | ✋ clickable mock before UI, then a real meeting |
 | S3 | Editable transcript, live and after; each word-level correction extracted and offered as a dictionary entry; dictionary used as `AnalysisContext` hints and as a post-transcription substitution | Correction-diff and substitution tests; a spike proves `SpeechTranscriber` honours the hints (or the hints are dropped and said so) | — |
 | S4 | Scopes: global and per profile (J-04), applied to the speaker's segments; the same correction in two profiles offers "global"; a profile's vocabulary as a tie-breaker in recognition | Scope and promotion tests; C5 with vocabulary | ✋ owner uses it for a few days |
+| S5 | Profile-guided split (J-14): each sentence of a voice compared with the people's stored prints; when two people each clearly own ≥ 2 sentences, the voice is offered as both (`Transcript.knownSplit`, `VoiceRecognition.splits`); accepting moves the second person's sentences and names both voices | C4 merged voice split with no mark; no false split on C2, C2-noise or the owner's meetings at the chosen rule | ✋ owner tries it on a meeting with two known people who sound alike |
 
 ## Results
 
@@ -134,3 +135,50 @@ else.
 **S3–S4, vocabulary.** Spike: `SpeechTranscriber` ignores `AnalysisContext`'s
 contextual strings ("Kilmet", "Zubizarrete" with and without them), so the vocabulary is
 applied to the text, by speaker, never handed to the model.
+
+### S5 — the profiles split a merged voice (2026-11-05)
+
+The challenge after 1.3.0: separation runs on the diarizer's own voiceprints (pyannote),
+the weaker of the two models Quill carries, and the people's stored prints only name a
+voice from its mean print. A voice holding two people has a mean between them, close to
+neither, so it came out as an unnamed "Persona N" with no proposal.
+
+Now every measured sentence of a voice is compared with each person's stored prints
+(WeSpeaker, one per earlier meeting). A sentence belongs to a person when it is at least
+0.5 alike to their nearest print and 0.1 ahead of anybody else; when two people each own
+two such sentences, the rest of the voice follows whichever side of this meeting it is
+nearer (`VoiceSplit.twoWay` with the owned sentences pinned), and the window offers
+"En esta voz parecen hablar Lucía y Marta. ¿Separo sus frases?". Accepting moves the
+second person's sentences (to the voice already named as them, or a new one) and names
+both; "No, es una sola persona" stops proposing that person for the voice. A voice named
+as one of the two keeps its name on that person's sentences; named as somebody else, it
+is left to the conflict notice. The meeting's own samples never count: after a merged voice
+is named, its sample is a blend of both.
+
+Measured with `meeting-bench known <case>`: every pool speaker known from two earlier
+meetings made of the clips the case did not use (C5), so the directory holds the merged
+pair, the rest of the case and six strangers.
+
+| Case | Sentence vs own person p10/p50/p90 | vs closest other p10/p50/p90 | Own ahead | Result at ≥ 0.5, +0.1, ×2 |
+|---|---|---|---|---|
+| c4-similar | 0.72 / 0.87 / 0.93 | 0.47 / 0.59 / 0.71 | 97 % | the two women's voice split, **94 % of its 18 sentences right**, no mark (S1 needed two marks for 100 %); no other voice split |
+| c2-es | 0.71 / 0.87 / 0.91 | 0.36 / 0.48 / 0.50 | 100 % | no split (C2's people are strangers to the directory but one) |
+| c2-es-noise | 0.73 / 0.82 / 0.88 | 0.35 / 0.43 / 0.49 | 100 % | no split |
+
+Every rule from ≥ 0.5 up gives the same answers; at ≥ 0.4 C2 and C2-noise get false
+splits between strangers, so 0.5 is the floor with a margin. On the owner's five meetings
+with prints (`meeting-bench known-real`; the directory holds Fran and Hugo only), no voice
+is split under any rule tried. Not covered: two people in one room on one microphone, and
+the live panel, which still names voices from their mean print during the meeting.
+
+In the app (debug build, `meeting-bench known c4-similar --seed <dir>`, then
+`QUILL_DATA_DIR=<dir> QUILL_OPEN_MEETING=<id>`): "Persona 2" reads "En esta voz parecen
+hablar Marta y Lucía. ¿Separo sus frases?" ([qa/meetings-voice-split-offer.png](qa/meetings-voice-split-offer.png)); with
+`QUILL_OPEN_MEETING_SPLIT=speaker-2` the voice becomes Marta (10 sentences) and Lucía (8),
+both named and each with this meeting's sample ([qa/meetings-voice-split-done.png](qa/meetings-voice-split-done.png)). The proposal
+text now wraps in its card instead of being cut to one line, for every voice proposal.
+
+Installed over `/Applications/Quill.app` on 2026-11-05 for the owner's trial (by J-05),
+release build of this slice, same team signature; the previous 1.3.0 bundle is kept in
+`native/quill/build/rollback-2026-11-05/` of the main checkout.
+

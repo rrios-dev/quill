@@ -184,6 +184,15 @@ do {
                 print("  \(k) marked: \(percent(Double(right) / Double(max(rest.count, 1)))) of the other \(rest.count) sentences with the right person")
             }
         }
+    case "known":
+        // S5: a voice holding two people the directory knows, split from their stored prints.
+        guard arguments.count > 1 else { throw BenchError("known <case>") }
+        let seed = arguments.firstIndex(of: "--seed").flatMap { arguments.indices.contains($0 + 1) ? URL(fileURLWithPath: arguments[$0 + 1]) : nil }
+        try await KnownVoicesBench.run(case: arguments[1], cache: cache, models: try modelsDirectory(), seed: seed)
+    case "known-real":
+        // S5 on the owner's meetings: proposals per voice, read by hand (no reference).
+        guard arguments.count > 1 else { throw BenchError("known-real <meetings-data directory>") }
+        try KnownVoicesBench.real(dataDirectory: URL(fileURLWithPath: arguments[1]))
     case "incremental":
         // Live naming: diarization passes over what was heard so far, every two minutes,
         // labelled by SpeakerLabeler; then the final pass. Scored as the share of each
@@ -304,7 +313,7 @@ do {
             exit(failures.isEmpty ? 0 : 1)
         }
     default:
-        print("usage: meeting-bench prepare | run [--gate] [case…] | live-audio <case> | score <case> <report> [--gate]")
+        print("usage: meeting-bench prepare | run [--gate] [case…] | split <case> | known <case> [--seed <dir>] | known-real <data dir> | live-audio <case> | score <case> <report> [--gate]")
         exit(64)
     }
 } catch {

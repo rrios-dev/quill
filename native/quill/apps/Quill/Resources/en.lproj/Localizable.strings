@@ -460,6 +460,9 @@
 "people.voice.conflict %@" = "This voice sounds like %@ in another meeting: one of the two names is wrong.";
 "people.voice.isOther %@" = "It is %@";
 "people.voice.keep" = "The name is right";
+"people.voice.split %@ %@" = "%@ and %@ both seem to speak in this voice. Split their sentences?";
+"people.voice.split.accept" = "Split";
+"people.voice.split.reject" = "No, it is one person";
 "meeting.transcript.correct" = "Correct text";
 "meeting.transcript.correct.hint" = "Return saves the correction and learns it; Esc drops it.";
 "meeting.learnt %@ %@" = "Learnt: %1$@, %2$@.";

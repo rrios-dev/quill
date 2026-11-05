@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Security
 
-/// Installs a newer release in one click (Quill J-13): downloads its disk image, checks the
+/// Installs a newer release in one click: downloads its disk image, checks the
 /// app inside is signed by the same team and accepted by Gatekeeper (notarized), puts it in
 /// place of the running app and reopens it.
 ///

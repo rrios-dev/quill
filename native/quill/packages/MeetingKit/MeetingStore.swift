@@ -234,6 +234,12 @@ public final class MeetingStore: @unchecked Sendable {
                                      named: meeting.people, rejected: meeting.rejectedPeople ?? [:])
     }
 
+    /// Voices of `meeting` that hold two people of the directory (`VoiceRecognition.splits`).
+    public func splits(for meeting: MeetingRecord) -> [String: KnownSplit<UUID>] {
+        VoiceRecognition.splits(transcript: meeting.transcript, people: people(), named: meeting.people,
+                                rejected: meeting.rejectedPeople ?? [:], in: meeting.id)
+    }
+
     /// Named voices of `meeting` that sound like someone else (`VoiceRecognition.conflicts`).
     public func conflicts(for meeting: MeetingRecord) -> [String: VoiceRecognition.Suggestion] {
         VoiceRecognition.conflicts(voices: VoiceRecognition.voices(of: meeting.transcript), people: people(),

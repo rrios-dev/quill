@@ -460,6 +460,9 @@
 "people.voice.conflict %@" = "Esta voz suena como %@ en otra reunión: uno de los dos nombres está mal.";
 "people.voice.isOther %@" = "Es %@";
 "people.voice.keep" = "El nombre está bien";
+"people.voice.split %@ %@" = "En esta voz parecen hablar %@ y %@. ¿Separo sus frases?";
+"people.voice.split.accept" = "Separar";
+"people.voice.split.reject" = "No, es una persona";
 "meeting.transcript.correct" = "Corregir texto";
 "meeting.transcript.correct.hint" = "Intro guarda la corrección y la aprende; Esc la descarta.";
 "meeting.learnt %@ %@" = "Aprendido: %1$@, %2$@.";

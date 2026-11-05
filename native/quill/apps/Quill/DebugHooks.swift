@@ -54,6 +54,10 @@ enum DebugHooks {
         value("QUILL_OPEN_MEETING_MOVES")?.split(separator: ",").compactMap { Int($0) } ?? []
     }
 
+    /// `QUILL_OPEN_MEETING_SPLIT=<label>` — with `QUILL_OPEN_MEETING`, answer "Separar" to
+    /// that voice's split offer (VOICES.md S5).
+    static var openMeetingSplit: String? { value("QUILL_OPEN_MEETING_SPLIT") }
+
     /// `QUILL_CHECK_UPDATES=<version>` — debug builds do not ask GitHub for updates unless
     /// this is set; the value stands for the running version ("1" keeps the bundle's), so
     /// an older one sees the published release as new. `QUILL_OPEN_SETTINGS=general` opens

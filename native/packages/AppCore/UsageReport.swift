@@ -24,7 +24,7 @@ public struct UsageDay: Codable, Equatable, Sendable {
     }
 }
 
-/// Usage statistics an app sends only with the user's prior consent (Quill J-11).
+/// Usage statistics an app sends only with the user's prior consent.
 ///
 /// Off until the user says yes: asked once, a switch in Settings. Asking is the law here,
 /// not a courtesy: reading anything from someone's Mac to send it needs prior consent

@@ -338,7 +338,15 @@ private struct PersonCard: View {
                     .help(MeetingCopy.t("synthesis.participant.help"))
                 }
             }
-            if let person = row.suggestion {
+            if let split = row.split {
+                VoiceProposal(text: String(localized: "people.voice.split \(model.personTitle(split.kept)) \(model.personTitle(split.other))",
+                                           bundle: .localized),
+                              accept: MeetingCopy.t("people.voice.split.accept"),
+                              reject: MeetingCopy.t("people.voice.split.reject"),
+                              tint: entry.color,
+                              onAccept: { model.acceptSplit(for: row.label) },
+                              onReject: { model.rejectSplit(for: row.label) })
+            } else if let person = row.suggestion {
                 VoiceProposal(text: String(localized: "people.voice.suggestion \(model.personTitle(person))", bundle: .localized),
                               accept: MeetingCopy.t("people.voice.yes"), reject: MeetingCopy.t("people.voice.no"),
                               tint: entry.color,
@@ -671,8 +679,8 @@ private struct AnalysisControls: View {
     }
 }
 
-/// A question about a voice with two answers in place: "Is this Fran?" or "This voice
-/// sounds like Hugo" (VOICES.md S2, J-03).
+/// A question about a voice with two answers in place: "Is this Fran?", "This voice
+/// sounds like Hugo" (VOICES.md S2, J-03) or "Fran and Hugo seem to speak here" (S5).
 private struct VoiceProposal: View {
     let text: String
     let accept: String

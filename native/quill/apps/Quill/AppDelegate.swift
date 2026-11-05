@@ -92,6 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 model.move(sentence: first, to: nil)
                 for index in DebugHooks.openMeetingMoves.dropFirst() { model.move(sentence: index, to: target) }
             }
+            if let model = meetings.debugMeetingModel(id), let label = DebugHooks.openMeetingSplit {
+                model.acceptSplit(for: label)
+            }
         }
         if let transcript = DebugHooks.snapshotsMeetings, let meetings {
             let openSettings: () -> Void = { [weak self] in self?.openSettings(.meetings) }

@@ -11,7 +11,7 @@ enum QuillUsage {
     /// Every count Quill may send. A name not here is never kept (`UsageReport.count`).
     static let counts: Set<String> = [
         "launches", "rewrites", "meetings", "meeting_minutes", "syntheses", "corrections",
-        "voices_recognised", "microphone_muted_in_quill",
+        "voices_recognised", "voices_split", "microphone_muted_in_quill",
         "provider_apple", "provider_openrouter", "provider_openai", "provider_vercel", "provider_custom",
     ]
 

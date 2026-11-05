@@ -73,6 +73,15 @@ final class MeetingFlowModel {
         var suggestion: KnownPerson?
         /// For a named voice: someone else it sounds like, so one of the names is wrong.
         var soundsLike: KnownPerson?
+        /// Two people of the directory heard in this one voice, offered to split (VOICES.md S5).
+        var split: SplitOffer?
+    }
+
+    /// "Here Fran and Hugo seem to speak": the voice keeps `kept`, `moved` go to `other`.
+    struct SplitOffer: Equatable {
+        let kept: KnownPerson
+        let other: KnownPerson
+        let moved: [Int]
     }
 
     /// A person of the directory, as a row proposes them.
@@ -209,8 +218,14 @@ final class MeetingFlowModel {
         let known = Dictionary(store.people().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let suggestions = store.suggestions(for: record)
         let conflicts = store.conflicts(for: record)
-        func knownPerson(_ suggestion: VoiceRecognition.Suggestion?) -> KnownPerson? {
-            suggestion.flatMap { known[$0.personID] }.map { KnownPerson(id: $0.id, name: $0.name, roleID: $0.roleID) }
+        let splits = store.splits(for: record)
+        func knownPerson(_ id: UUID?) -> KnownPerson? {
+            id.flatMap { known[$0] }.map { KnownPerson(id: $0.id, name: $0.name, roleID: $0.roleID) }
+        }
+        func knownPerson(_ suggestion: VoiceRecognition.Suggestion?) -> KnownPerson? { knownPerson(suggestion?.personID) }
+        func offer(_ split: KnownSplit<UUID>?) -> SplitOffer? {
+            guard let split, let kept = knownPerson(split.kept), let other = knownPerson(split.other) else { return nil }
+            return SplitOffer(kept: kept, other: other, moved: split.moved)
         }
         rows = record.labels.map { label in
             let segments = record.transcript.segments.filter { ($0.speaker ?? $0.channel.rawValue) == label }
@@ -218,12 +233,15 @@ final class MeetingFlowModel {
             let personID = record.people[label]
             let person = personID.flatMap { known[$0] }
             let name = record.transcript.names[label] ?? person?.name ?? ""
+            // A voice that holds two people is not proposed as either of them alone.
+            let split = offer(splits[label])
             return PersonRow(label: label, turns: segments.count, sample: String(sample.prefix(110)),
                              name: name, roleID: person?.roleID, roleRemembered: person?.roleID != nil,
-                             suggestion: name.isEmpty ? knownPerson(suggestions[label]) : nil,
-                             soundsLike: knownPerson(conflicts[label].flatMap {
+                             suggestion: name.isEmpty && split == nil ? knownPerson(suggestions[label]) : nil,
+                             soundsLike: split != nil ? nil : knownPerson(conflicts[label].flatMap {
                                  (record.rejectedPeople?[label] ?? []).contains($0.personID) ? nil : $0
-                             }))
+                             }),
+                             split: split)
         }
     }
 
@@ -480,6 +498,39 @@ final class MeetingFlowModel {
         if row.suggestion != nil, let voice = VoiceRecognition.voices(of: record.transcript)[label] {
             try? store.unlearnVoice(like: voice, of: person.id)
         }
+        persist()
+        reload()
+    }
+
+    /// "Yes, they are two": the other person's sentences go to the voice already named as
+    /// them in this meeting, or to a new one, and both voices take their person's name and
+    /// role where they have none yet. Naming them teaches each person this meeting's voice.
+    func acceptSplit(for label: String) {
+        guard let offer = rows.first(where: { $0.label == label })?.split else { return }
+        commitPeople()
+        let target = record.people.first { $0.value == offer.other.id && $0.key != label }?.key
+            ?? record.transcript.newVoiceLabel
+        record.transcript.move(offer.moved, to: target)
+        persist()
+        reload()
+        for (rowLabel, person) in [(label, offer.kept), (target, offer.other)] {
+            guard let index = rows.firstIndex(where: { $0.label == rowLabel }),
+                  rows[index].name.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
+            rows[index].name = person.name
+            rows[index].roleID = person.roleID
+            rows[index].roleRemembered = person.roleID != nil
+        }
+        commitPeople()
+        reload()
+        coordinator.countUsage("voices_split", 1)
+    }
+
+    /// "No, it is not them": the second person is not proposed for this voice again.
+    func rejectSplit(for label: String) {
+        guard let offer = rows.first(where: { $0.label == label })?.split else { return }
+        var rejected = record.rejectedPeople ?? [:]
+        rejected[label, default: []].append(offer.other.id)
+        record.rejectedPeople = rejected
         persist()
         reload()
     }
