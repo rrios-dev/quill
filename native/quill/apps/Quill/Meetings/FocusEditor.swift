@@ -30,8 +30,7 @@ final class FocusEditorController {
             window.center()
             self.window = window
         }
-        NSApplication.shared.activate()
-        window?.makeKeyAndOrderFront(nil)
+        WindowFocus.bringForward(window)
     }
 }
 

@@ -38,8 +38,7 @@ final class MeetingPanelController<Content: View> {
             panel.setFrameOrigin(NSPoint(x: screen.maxX - size.width - 16, y: screen.maxY - size.height - 12))
         }
         if activates {
-            NSApplication.shared.activate()
-            panel.makeKeyAndOrderFront(nil)
+            WindowFocus.bringForward(panel)
         } else {
             panel.orderFrontRegardless()
         }

@@ -55,9 +55,7 @@ final class SettingsWindowController {
         } else {
             select(selection.pane)
         }
-        // An accessory app has to activate for its window to take the keyboard.
-        NSApplication.shared.activate()
-        window?.makeKeyAndOrderFront(nil)
+        WindowFocus.bringForward(window)
     }
 
     private func select(_ pane: SettingsPane) {

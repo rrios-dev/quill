@@ -43,8 +43,7 @@ final class MeetingWindowController: NSObject, NSWindowDelegate {
             window.setFrameAutosaveName("QuillMeetingWindow")
             self.window = window
         }
-        NSApplication.shared.activate()
-        window?.makeKeyAndOrderFront(nil)
+        WindowFocus.bringForward(window)
     }
 
     func reloadFocuses() { model.reload() }
