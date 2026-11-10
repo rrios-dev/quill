@@ -39,6 +39,11 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
     /// the user split one voice into two people (`VoiceSplit`). Nil for `me`, for
     /// segments too short to measure and for meetings saved before it was kept.
     public var voiceprint: Voiceprint?
+    /// What the transcriber wrote, when the user's vocabulary changed it: `text` is
+    /// always this with the vocabulary applied, so forgetting a word gives it back.
+    public var heard: String?
+    /// The user rewrote this sentence by hand: the vocabulary leaves it as they wrote it.
+    public var edited: Bool?
 
     public init(
         channel: Channel,
@@ -47,7 +52,9 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
         text: String,
         speaker: String? = nil,
         words: [TimedWord] = [],
-        voiceprint: Voiceprint? = nil
+        voiceprint: Voiceprint? = nil,
+        heard: String? = nil,
+        edited: Bool? = nil
     ) {
         self.channel = channel
         self.start = start
@@ -56,6 +63,8 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
         self.speaker = speaker
         self.words = words
         self.voiceprint = voiceprint
+        self.heard = heard
+        self.edited = edited
     }
 }
 

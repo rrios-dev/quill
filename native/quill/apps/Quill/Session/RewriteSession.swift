@@ -4,6 +4,7 @@ import ModelKit
 import Observation
 import os
 import QuillSupport
+import RemoteTyping
 import RewriteKit
 import SelectionKit
 
@@ -29,6 +30,21 @@ final class RewriteSession {
     /// `QUILL_TREAT_LOOPBACK_AS_REMOTE`: a loopback server goes through the hosted paths
     /// (consent, waiting to start, cost), so the mock server exercises them.
     private let treatLoopbackAsRemote: Bool
+    /// Where an applied result lands when Batuta lends the keyboard to another computer;
+    /// nil applies on this Mac only (shared-control S6 R2).
+    private let remote: RemoteLanding?
+    /// A refusal from Batuta waiting to be said with the outcome it led to.
+    private var pendingRemoteNotice: RemoteRefusal?
+    /// The computer the text came from when the shortcut took it from the one Batuta lends
+    /// the keyboard to; nil for a text of this Mac (shared-control S6 R6).
+    private(set) var remoteSource: RemoteComputer?
+    /// Whether this session asked Batuta to keep the keys on the Mac for the picker.
+    private var holdsKeyboard = false
+
+    /// The app a text from another computer is filed under: Batuta, which lends it. Settings →
+    /// Apps can give "Batuta" a profile and direct apply like any app, for every text that
+    /// comes from another computer (S6 R6, `[a revisar]`).
+    static let remoteApp = AppIdentity(pid: 0, bundleIdentifier: BatutaKeyboard.bundleIdentifier)
     private let log = QuillLog(category: "session")
 
     /// Effects the window performs: show or close the picker, a toast, open Settings.
@@ -96,11 +112,12 @@ final class RewriteSession {
     /// The registry the session started with: a rewrite in flight keeps it.
     private var registry: ProviderRegistry
 
-    private enum Origin { case hotKey, services }
+    private enum Origin { case hotKey, services, dictation }
 
     init(settings: SettingsStore, profiles: ProfileStore, registry: ProviderRegistryHolder,
          engine: GenerationEngine, guards: OutputGuards, selection: any SessionSelection,
-         catalog: any ModelCatalog, examples: any ExampleSink, treatLoopbackAsRemote: Bool = false) {
+         catalog: any ModelCatalog, examples: any ExampleSink, treatLoopbackAsRemote: Bool = false,
+         remote: RemoteLanding? = nil) {
         self.settings = settings
         self.profiles = profiles
         self.registryHolder = registry
@@ -111,6 +128,7 @@ final class RewriteSession {
         self.catalog = catalog
         self.examples = examples
         self.treatLoopbackAsRemote = treatLoopbackAsRemote
+        self.remote = remote
     }
 
     // MARK: Start
@@ -126,13 +144,16 @@ final class RewriteSession {
         appliedDirectly = false
         directApplyDeclined = nil
         usedSuggestion = false
+        pendingRemoteNotice = nil
+        holdKeyboard(false)
+        remoteSource = nil
         instructionDraft = ""
         activeInstruction = nil
         state = .capturing
         let current = (try? settings.settings()) ?? QuillSettings()
         profileList = ((try? profiles.all().profiles) ?? []).sorted(by: AppDelegate.menuOrder)
 
-        let app: AppIdentity
+        var app: AppIdentity
         let hotKeyCode: CGKeyCode?
         switch trigger {
         case .hotKey(let identity, let code):
@@ -143,6 +164,31 @@ final class RewriteSession {
             app = delivered.app
             hotKeyCode = nil
             origin = .services
+        case .dictated(let delivered):
+            app = delivered.app
+            hotKeyCode = nil
+            origin = .dictation
+        }
+
+        // The shortcut reached Quill while Batuta lends the keyboard to another computer (it
+        // keeps Quill's shortcuts on the Mac): the text is that computer's selection, never
+        // the Mac's, which the owner is not looking at (S6 R6).
+        var remoteText: String?
+        if origin == .hotKey, let remote {
+            let source = await remote.source()
+            guard case .capturing = state else { return }  // the shortcut again closed it meanwhile
+            switch source {
+            case .mac:
+                break
+            case .client(let computer, let text):
+                remoteSource = computer
+                remoteText = text
+                app = Self.remoteApp
+            case .nothing(let notice):
+                state = .closed
+                onEffect(.selectionNotice(notice))
+                return
+            }
         }
 
         let resolved = resolveProfile(settings: current, bundleIdentifier: app.bundleIdentifier)
@@ -154,17 +200,23 @@ final class RewriteSession {
         }
 
         // Direct apply only when the app's default has it on, and never from Services.
-        isDirectApply = origin == .hotKey && !staleAppDefault
+        isDirectApply = origin != .services && !staleAppDefault
             && app.bundleIdentifier.map { current.directApplyApps.contains($0) && current.appDefaults[$0] != nil } == true
 
         // Prewarm while the capture runs: the shortcut is the moment the user commits.
-        if origin == .hotKey, let model, let provider = registry[model.provider] {
+        if origin != .services, let model, let provider = registry[model.provider] {
             let request = GenerationRequest(model: model.model, instructions: "", input: "")
             Task.detached { await provider.prewarm(for: request) }
         }
 
         switch trigger {
         case .hotKey:
+            if let remoteText {
+                // X11's PRIMARY selection is plain text. Editable: the result is typed where the
+                // selection is, so what this Mac could paste into does not apply.
+                capture = Capture(text: remoteText, app: app, editability: .editable, formatting: .plain, method: .copy)
+                break
+            }
             switch await selection.capture(app: app, hotKeyCode: hotKeyCode) {
             case .success(let captured): capture = captured
             case .failure(let refusal):
@@ -172,7 +224,7 @@ final class RewriteSession {
                 presentPicker()
                 return
             }
-        case .services(let delivered):
+        case .services(let delivered), .dictated(let delivered):
             capture = delivered
         }
         if !isDirectApply { presentPicker() }
@@ -304,7 +356,8 @@ final class RewriteSession {
         generationStartedAt = .now
         timings.firstToken = nil
         firstTokenInterval = QuillSignposts.signposter.beginInterval(QuillSignposts.firstToken)
-        if capture.editability != .readOnlyOnly {
+        // A text from another computer is typed there, never pasted on this Mac.
+        if capture.editability != .readOnlyOnly, remoteSource == nil {
             Task { await selection.prepareSnapshot() }
         }
 
@@ -375,7 +428,9 @@ final class RewriteSession {
         let strategy = selection.strategy(for: capture.app.bundleIdentifier)
         let declined: DirectApplyDeclined? = switch state {
         case .ready:
-            if capture.editability != .editable { .targetNotEditable }
+            // Typed on the computer it came from: this Mac's paste and ⌘Z checks do not apply.
+            if remoteSource != nil { nil }
+            else if capture.editability != .editable { .targetNotEditable }
             else if strategy.replaceViaAccessibilityWrite || !strategy.undoVerified { .notUndoable }
             else { nil }
         case .flagged: .flagged
@@ -405,6 +460,9 @@ final class RewriteSession {
         guard !pickerShown else { return }
         pickerShown = true
         onEffect(.showPicker)
+        // The owner's keys would go on to the other computer: they stay on the Mac, for the
+        // picker, until it closes (S6 R6).
+        holdKeyboard(true)
         if let startedAt, timings.captureToPicker == nil {
             timings.captureToPicker = Self.milliseconds(since: startedAt)
             if let captureInterval { QuillSignposts.signposter.endInterval(QuillSignposts.capture, captureInterval) }
@@ -636,14 +694,43 @@ final class RewriteSession {
 
     private func close() {
         cancelGeneration()
+        holdKeyboard(false)
         state = .closed
         onEffect(.close)
+    }
+
+    /// Keeps the keys on the Mac, or gives them back, for a text from another computer; the
+    /// last call stands (`RemoteLanding.hold`). Nothing for a text of this Mac.
+    private func holdKeyboard(_ hold: Bool) {
+        guard let remote, remoteSource != nil, hold != holdsKeyboard else { return }
+        holdsKeyboard = hold
+        remote.hold(hold)
     }
 
     // MARK: Apply and copy
 
     private func apply(pasteAnyway: Bool) async {
         guard let capture, case .ready(let text) = state else { return }
+        if let remote, let source = remoteSource {
+            return await applyRemotely(text, from: source, remote: remote)
+        }
+        // Batuta may have lent the keyboard to another computer while the model wrote: it is
+        // asked now, when the text is ready, and the text goes where the keyboard is. Quill's
+        // own ⌘V would reach that computer as a bare keystroke (Batuta's event tap forwards
+        // what Quill posts), so typing it there is the only way it lands. Any other answer
+        // keeps the text on this Mac, as before (shared-control S6 R2).
+        if let remote {
+            state = .applying
+            let decision = await remote.land(text)
+            guard case .applying = state else { return }
+            switch decision {
+            case .typed(let computer):
+                return finishApplied(.typed(computer: computer))
+            case .local(let notice):
+                if let notice { pendingRemoteNotice = notice }
+                state = .ready(text: text)
+            }
+        }
         // Read-only-only and uncertain targets copy on Return; Paste anyway is ⌥Return.
         if capture.editability == .readOnlyOnly || (capture.editability == .uncertain && !pasteAnyway) {
             guard await selection.copy(text) else { return await waitForClipboard(text, resume: .ready) }
@@ -657,6 +744,28 @@ final class RewriteSession {
         timings.replace = Self.milliseconds(since: replaceStart)
         if outcome == .clipboardBusy { return await waitForClipboard(text, resume: .ready) }
         finishApplied(.replace(outcome))
+    }
+
+    /// A result made from another computer's selection goes back there, typed over that
+    /// selection, and only there (S6 R6). R2's rule for a text of this Mac is "where the
+    /// keyboard is"; here the Mac's own selection was never the target, so pasting on the Mac
+    /// would put the text somewhere the owner did not point at. If that computer no longer has
+    /// the keyboard, or Batuta refuses, the result is copied instead — Batuta's clipboard
+    /// sharing carries it to that computer too — and the toast says why: nothing is lost,
+    /// nothing lands in the wrong place.
+    private func applyRemotely(_ text: String, from source: RemoteComputer, remote: RemoteLanding) async {
+        state = .applying
+        // The keys go back to that computer before the text is typed there.
+        holdKeyboard(false)
+        let refusal = await remote.land(text, on: source)
+        guard case .applying = state else { return }
+        guard let refusal else { return finishApplied(.typed(computer: source.name)) }
+        pendingRemoteNotice = refusal
+        if await selection.copy(text) { return finishApplied(.copied) }
+        // A timed-out clipboard read is still running: the result waits in the picker.
+        presentPicker()
+        holdKeyboard(true)
+        await waitForClipboard(text, resume: .ready)
     }
 
     private func copy(_ text: String, resume: SessionState.Resume) async {
@@ -676,9 +785,12 @@ final class RewriteSession {
     }
 
     private func finishApplied(_ outcome: AppliedOutcome) {
+        holdKeyboard(false)
         state = .applied(outcome)
         onEffect(.close)
-        onEffect(.toast(outcome, profile: profile?.name ?? "", direct: appliedDirectly))
+        let notice = pendingRemoteNotice
+        pendingRemoteNotice = nil
+        onEffect(.toast(outcome, profile: profile?.name ?? "", direct: appliedDirectly, remote: notice))
     }
 
     // MARK: Correcting

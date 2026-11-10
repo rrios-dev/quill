@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ListenKit
 import MeetingKit
@@ -75,6 +76,12 @@ final class MeetingFlowModel {
         var soundsLike: KnownPerson?
         /// Two people of the directory heard in this one voice, offered to split (VOICES.md S5).
         var split: SplitOffer?
+        /// The person this voice is, by id (J-02): set when the user confirms a proposal or
+        /// picks among people who share the name, cleared when the name is changed.
+        var personID: UUID?
+        /// People the typed name may be, when it cannot tell by itself: several share it,
+        /// or the voice is not the one person who has it (EFFICIENCY.md E4).
+        var candidates: [KnownPerson] = []
     }
 
     /// "Here Fran and Hugo seem to speak": the voice keeps `kept`, `moved` go to `other`.
@@ -125,6 +132,10 @@ final class MeetingFlowModel {
     private(set) var proposal: Proposal?
     /// What the last correction taught, said under the transcript until dismissed.
     private(set) var learnt: LearntNotice?
+    /// Voice label → people its typed name may be, until the user chooses.
+    private var choices: [String: [UUID]] = [:]
+    /// Voices the user said are someone new, though the name is known.
+    private var newPeople: Set<String> = []
 
     /// The words a correction added to someone's vocabulary (VOICES.md S3–S4).
     struct LearntNotice: Equatable {
@@ -136,9 +147,11 @@ final class MeetingFlowModel {
         let alsoCorrected: Int
         /// Pairs already kept for someone else: offered to everybody (J-04).
         let promotable: [Pair]
+        /// Pairs whose heard word is an ordinary word of the language ("vale" → "Valle"):
+        /// learnt only if the user says so, or every "vale" would change.
+        let held: [Pair]
         fileprivate let sentence: Int
-        fileprivate let previousText: String
-        fileprivate let previousOthers: [Int: String]
+        fileprivate let previous: TranscriptSegment
         fileprivate let created: [UUID]
 
         struct Pair: Equatable, Hashable {
@@ -241,7 +254,8 @@ final class MeetingFlowModel {
                              soundsLike: split != nil ? nil : knownPerson(conflicts[label].flatMap {
                                  (record.rejectedPeople?[label] ?? []).contains($0.personID) ? nil : $0
                              }),
-                             split: split)
+                             split: split, personID: personID,
+                             candidates: (choices[label] ?? []).compactMap { knownPerson($0) })
         }
     }
 
@@ -385,9 +399,16 @@ final class MeetingFlowModel {
         return String(localized: "label.person \(number)", bundle: .localized)
     }
 
-    /// Typing a known name fills in the role remembered for it.
+    /// Typing a known name fills in the role remembered for it. A name changed away from
+    /// the person the voice was tied to unties it: it is resolved again when committed.
     func nameChanged(at index: Int) {
-        guard rows.indices.contains(index), rows[index].roleID == nil || rows[index].roleRemembered else { return }
+        guard rows.indices.contains(index) else { return }
+        if let id = rows[index].personID, let person = store.people().first(where: { $0.id == id }),
+           MeetingStore.fold(person.name) != MeetingStore.fold(rows[index].name.trimmingCharacters(in: .whitespaces)) {
+            rows[index].personID = nil
+            newPeople.remove(rows[index].label)
+        }
+        guard rows[index].roleID == nil || rows[index].roleRemembered else { return }
         if let person = store.person(named: rows[index].name), let roleID = person.roleID {
             rows[index].roleID = roleID
             rows[index].roleRemembered = true
@@ -397,8 +418,9 @@ final class MeetingFlowModel {
     // MARK: Corrections
 
     /// The user rewrote a sentence. The words that changed are learnt for whoever said it
-    /// and written into their other sentences of this meeting; an unnamed voice's go to
-    /// everybody, since they belong to nobody yet.
+    /// and written into their other sentences; an unnamed voice's wait on that voice and go
+    /// to its person when it is named. A word the language already has ("vale" for
+    /// "Valle") is not learnt unless the user says so: every "vale" would change.
     func correct(sentence index: Int, to text: String) {
         guard record.transcript.segments.indices.contains(index) else { return }
         let new = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -406,51 +428,89 @@ final class MeetingFlowModel {
         guard !new.isEmpty, new != segment.text else { return }
         commitPeople()
         let label = segment.speaker ?? segment.channel.rawValue
-        let scope = record.vocabularyScope(of: label) ?? .global
+        let scope = record.vocabularyScope(of: label)
         let pairs = Vocabulary.replacements(from: segment.text, to: new)
+        let language = Locale(identifier: record.transcript.locale).language.languageCode?.identifier
+        let held = pairs.filter { Self.isOrdinaryWord($0.heard, language: language) }
+        let taught = pairs.filter { pair in !held.contains { $0 == pair } }
+        record.transcript.segments[index].heard = segment.heard ?? segment.text
         record.transcript.segments[index].text = new
+        record.transcript.segments[index].edited = true
         record.transcript.segments[index].words = []
         var created: [UUID] = []
-        var entries: [VocabularyEntry] = []
         var promotable: [LearntNotice.Pair] = []
-        for pair in pairs {
+        for pair in taught {
             guard let learnt = try? store.learn(heard: pair.heard, written: pair.written, scope: scope) else { continue }
             if learnt.entry.uses == 1 { created.append(learnt.entry.id) }
-            entries.append(learnt.entry)
             if !learnt.alsoFor.isEmpty { promotable.append(.init(heard: pair.heard, written: pair.written)) }
         }
-        var previousOthers: [Int: String] = [:]
-        if !entries.isEmpty {
-            for other in record.transcript.segments.indices where other != index
-                && (record.transcript.segments[other].speaker ?? record.transcript.segments[other].channel.rawValue) == label {
-                let before = record.transcript.segments[other].text
-                let after = Vocabulary.apply(entries, to: before)
-                if after != before {
-                    previousOthers[other] = before
-                    record.transcript.segments[other].text = after
-                    record.transcript.segments[other].words = []
-                }
-            }
-        }
+        let before = record
+        record = store.applyingVocabulary(to: record)
         if !pairs.isEmpty { coordinator.countUsage("corrections", pairs.count) }
         learnt = pairs.isEmpty ? nil : LearntNotice(
-            pairs: pairs.map { .init(heard: $0.heard, written: $0.written) },
-            owner: scope == .global ? nil : displayName(for: label),
-            alsoCorrected: previousOthers.count, promotable: promotable,
-            sentence: index, previousText: segment.text, previousOthers: previousOthers, created: created)
+            pairs: taught.map { .init(heard: $0.heard, written: $0.written) },
+            owner: owner(of: scope, label: label),
+            alsoCorrected: changedSentences(from: before), promotable: promotable,
+            held: held.map { .init(heard: $0.heard, written: $0.written) },
+            sentence: index, previous: segment, created: created)
         persist()
         rebuildTranscript()
     }
 
-    /// Puts the sentences back and forgets what that correction alone had taught.
+    /// "Learn it anyway": the held words become vocabulary too.
+    func learnHeld() {
+        guard let notice = learnt, !notice.held.isEmpty else { return }
+        let segment = record.transcript.segments[notice.sentence]
+        let label = segment.speaker ?? segment.channel.rawValue
+        let scope = record.vocabularyScope(of: label)
+        var created = notice.created
+        var promotable = notice.promotable
+        for pair in notice.held {
+            guard let learnt = try? store.learn(heard: pair.heard, written: pair.written, scope: scope) else { continue }
+            if learnt.entry.uses == 1 { created.append(learnt.entry.id) }
+            if !learnt.alsoFor.isEmpty { promotable.append(pair) }
+        }
+        let before = record
+        record = store.applyingVocabulary(to: record)
+        learnt = LearntNotice(pairs: notice.pairs + notice.held, owner: notice.owner,
+                              alsoCorrected: notice.alsoCorrected + changedSentences(from: before),
+                              promotable: promotable, held: [], sentence: notice.sentence,
+                              previous: notice.previous, created: created)
+        persist()
+        rebuildTranscript()
+    }
+
+    /// Puts the sentence back and forgets what that correction alone had taught; the
+    /// other sentences it had rewritten get the transcriber's words back.
     func undoCorrection() {
         guard let notice = learnt else { return }
-        record.transcript.segments[notice.sentence].text = notice.previousText
-        for (index, text) in notice.previousOthers { record.transcript.segments[index].text = text }
         for id in notice.created { try? store.forgetVocabulary(id) }
+        record.transcript.segments[notice.sentence] = notice.previous
+        record = store.applyingVocabulary(to: record)
         learnt = nil
         persist()
         rebuildTranscript()
+    }
+
+    /// Whose vocabulary a scope is, as the notice says it: nil while the voice has no name.
+    private func owner(of scope: VocabularyEntry.Scope, label: String) -> String? {
+        if case .voice = scope { return nil }
+        return displayName(for: label)
+    }
+
+    private func changedSentences(from before: MeetingRecord) -> Int {
+        zip(before.transcript.segments, record.transcript.segments).filter { $0.text != $1.text }.count
+    }
+
+    /// A single word the language's dictionary knows: changing it everywhere would change
+    /// sentences where it was right.
+    static func isOrdinaryWord(_ word: String, language: String?) -> Bool {
+        guard !word.contains(where: \.isWhitespace), word.count > 1 else { return false }
+        let checker = NSSpellChecker.shared
+        let available = language.flatMap { code in checker.availableLanguages.first { $0.hasPrefix(code) } }
+        let misspelled = checker.checkSpelling(of: word, startingAt: 0, language: available, wrap: false,
+                                               inSpellDocumentWithTag: 0, wordCount: nil)
+        return misspelled.location == NSNotFound
     }
 
     /// "Use it for everybody": the correction kept for several people becomes global, and
@@ -482,9 +542,30 @@ final class MeetingFlowModel {
         rows[index].name = person.name
         rows[index].roleID = person.roleID
         rows[index].roleRemembered = person.roleID != nil
+        rows[index].personID = person.id
         commitPeople()
         reload()
         coordinator.countUsage("voices_recognised", 1)
+    }
+
+    /// The user picks which of the people with this name the voice is, or says it is
+    /// someone new (`id` nil).
+    func choosePerson(_ id: UUID?, for label: String) {
+        guard let index = rows.firstIndex(where: { $0.label == label }) else { return }
+        choices[label] = nil
+        if let id, let person = store.people().first(where: { $0.id == id }) {
+            rows[index].personID = id
+            newPeople.remove(label)
+            if rows[index].roleID == nil, let roleID = person.roleID {
+                rows[index].roleID = roleID
+                rows[index].roleRemembered = true
+            }
+        } else {
+            rows[index].personID = nil
+            newPeople.insert(label)
+        }
+        commitPeople()
+        reload()
     }
 
     /// The user says it is someone else: not proposed again for this voice, and the samples that
@@ -519,6 +600,7 @@ final class MeetingFlowModel {
             rows[index].name = person.name
             rows[index].roleID = person.roleID
             rows[index].roleRemembered = person.roleID != nil
+            rows[index].personID = person.id
         }
         commitPeople()
         reload()
@@ -535,16 +617,17 @@ final class MeetingFlowModel {
         reload()
     }
 
-    /// Two voices given the same name are one person the diarizer split: the later
+    /// Two voices given the same person are one person the diarizer split: the later
     /// voice's sentences join the first. Measured on the owner's meetings: "Fran" twice
-    /// in one call, the two voices 0.62 alike.
+    /// in one call, the two voices 0.62 alike. Two voices tied to two different people
+    /// who share a name stay apart.
     private func mergeVoicesWithTheSameName() -> Bool {
         var first: [String: String] = [:]
         var moves: [(from: String, to: String)] = []
         for row in rows where row.label != "me" && row.label != "others" {
-            let key = row.name.trimmingCharacters(in: .whitespaces)
-                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-            guard !key.isEmpty else { continue }
+            let name = MeetingStore.fold(row.name.trimmingCharacters(in: .whitespaces))
+            guard !name.isEmpty, !newPeople.contains(row.label), choices[row.label] == nil else { continue }
+            let key = row.personID.map { "id:" + $0.uuidString } ?? "name:" + name
             if let target = first[key] { moves.append((row.label, target)) } else { first[key] = row.label }
         }
         guard !moves.isEmpty else { return false }
@@ -567,29 +650,53 @@ final class MeetingFlowModel {
     func commitPeople() {
         let merged = mergeVoicesWithTheSameName()
         let known = Dictionary(store.people().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let voices = VoiceRecognition.voices(of: record.transcript)
         var names: [String: String] = [:]
         var people: [String: UUID] = [:]
-        for row in rows {
+        var waiting: [String: [UUID]] = [:]
+        for index in rows.indices {
+            let row = rows[index]
             let name = row.name.trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { continue }
             names[row.label] = name
-            if let linked = record.people[row.label], let person = known[linked],
-               store.person(named: name)?.id == person.id {
-                if person.roleID != row.roleID { try? store.update(person: linked, roleID: row.roleID) }
-                people[row.label] = linked
-            } else if let person = try? store.remember(name: name, roleID: row.roleID, at: record.startedAt) {
+            // Who the voice is: the person the user tied it to, the one the name and voice
+            // point to, someone new, or a choice to make (EFFICIENCY.md E4).
+            var personID = row.personID.flatMap { known[$0] == nil ? nil : $0 }
+            if personID == nil, !newPeople.contains(row.label) {
+                switch store.match(name: name, voice: voices[row.label]) {
+                case .person(let id): personID = id
+                case .new: break
+                case .ambiguous(let ids):
+                    waiting[row.label] = ids
+                    continue
+                }
+            }
+            if let personID, record.people[row.label] == personID {
+                if known[personID]?.roleID != row.roleID { try? store.update(person: personID, roleID: row.roleID) }
+                people[row.label] = personID
+            } else if let person = try? store.remember(personID, name: name, roleID: row.roleID, at: record.startedAt) {
                 people[row.label] = person.id
+            }
+            rows[index].personID = people[row.label]
+            if people[row.label] != nil { newPeople.remove(row.label) }
+        }
+        if waiting != choices {
+            choices = waiting
+            for index in rows.indices {
+                rows[index].candidates = (waiting[rows[index].label] ?? []).compactMap { known[$0] }
+                    .map { KnownPerson(id: $0.id, name: $0.name, roleID: $0.roleID) }
             }
         }
         guard merged || names != record.transcript.names || people != record.people else { return }
         // Each named voice teaches its person what they sound like; a person who lost a
         // voice here forgets what they sounded like in this meeting.
-        let voices = VoiceRecognition.voices(of: record.transcript)
         for (label, old) in record.people where people[label] != old {
             try? store.forgetVoice(of: old, in: record.id)
         }
         for (label, person) in people {
             if let voice = voices[label] { try? store.learnVoice(voice, of: person, in: record.id) }
+            // What was corrected while the voice had no name is now its person's.
+            try? store.adoptVocabulary(of: label, in: record.id, as: person)
         }
         record.transcript.names = names
         record.people = people

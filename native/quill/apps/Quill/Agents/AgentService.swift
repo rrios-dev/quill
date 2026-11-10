@@ -95,6 +95,19 @@ final class AgentService {
             return await meetings.synthesizeForAgent(meetingID: meetingID, focusID: focusID)
         case .rewrite(let text, let profile):
             return await rewrite(text, with: profile)
+        case .meetingApps:
+            return meetings?.meetingAppsForAgent() ?? .failure("Meetings are unavailable in this Quill.")
+        case .startListening(let appID, let language, let stopWhenCallEnds):
+            guard let meetings else { return .failure("Meetings are unavailable in this Quill.") }
+            return await meetings.startForAgent(appID: appID, language: language, stopWhenCallEnds: stopWhenCallEnds)
+        case .listeningStatus(let lines):
+            return meetings?.statusForAgent(lines: lines) ?? .failure("Meetings are unavailable in this Quill.")
+        case .stopListening:
+            guard let meetings else { return .failure("Meetings are unavailable in this Quill.") }
+            return await meetings.stopForAgent()
+        case .waitForMeeting(let seconds):
+            guard let meetings else { return .failure("Meetings are unavailable in this Quill.") }
+            return await meetings.waitForAgent(seconds: seconds)
         }
     }
 

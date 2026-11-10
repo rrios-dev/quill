@@ -36,6 +36,13 @@ extension MeetingApp {
         MeetingApp(id: "whatsapp", name: "WhatsApp", bundlePrefixes: ["net.whatsapp.WhatsApp", "desktop.WhatsApp"]),
         MeetingApp(id: "telegram", name: "Telegram", bundlePrefixes: ["ru.keepcoder.Telegram", "org.telegram.desktop"]),
         MeetingApp(id: "signal", name: "Signal", bundlePrefixes: ["org.whispersystems.signal-desktop"]),
+        // Batuta lends this Mac's keyboard, mouse and headset to another computer
+        // (shared-control S6 R2): a call there plays through Batuta's process and gets the
+        // Mac's microphone from it. Batuta opens the microphone only while something on that
+        // computer asks for it, so "Batuta records" is "a call on another computer", and the
+        // tap of its output is the other people. Listed, it escapes `unlistedRecording`'s
+        // rule that Quill's own family never counts.
+        MeetingApp(id: "batuta", name: "Batuta", bundlePrefixes: ["dev.rrios.batuta"]),
         MeetingApp(id: "brave", name: "Brave", bundlePrefixes: ["com.brave.Browser"], isBrowser: true),
         MeetingApp(id: "chrome", name: "Google Chrome", bundlePrefixes: ["com.google.Chrome"], isBrowser: true),
         // WebKit's helpers play and record for every WebKit browser (Orion, Safari

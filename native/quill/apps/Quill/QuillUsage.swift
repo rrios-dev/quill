@@ -12,6 +12,8 @@ enum QuillUsage {
     static let counts: Set<String> = [
         "launches", "rewrites", "meetings", "meeting_minutes", "syntheses", "corrections",
         "voices_recognised", "voices_split", "microphone_muted_in_quill",
+        // EFFICIENCY.md E7, E8.
+        "meetings_started_by_agent", "dictations",
         "provider_apple", "provider_openrouter", "provider_openai", "provider_vercel", "provider_custom",
     ]
 
@@ -26,15 +28,12 @@ enum QuillUsage {
         }
     }
 
-    /// Asked once, never again whatever the answer: the switch in Settings changes it.
+    /// Asked once, never again whatever the answer: the switch in Settings changes it. A yes is a click,
+    /// never a stray Return (AppCore's `ConsentAlert`, shared-control S8 fix round X1).
     @MainActor
     static func ask(_ report: UsageReport) {
-        let alert = NSAlert()
-        alert.messageText = PickerCopy.string("usage.ask.title")
-        alert.informativeText = PickerCopy.string("usage.ask.body")
-        alert.addButton(withTitle: PickerCopy.string("usage.ask.yes"))
-        alert.addButton(withTitle: PickerCopy.string("usage.ask.no"))
-        NSApplication.shared.activate()
-        report.setConsent(alert.runModal() == .alertFirstButtonReturn)
+        report.setConsent(ConsentAlert.ask(
+            title: PickerCopy.string("usage.ask.title"), message: PickerCopy.string("usage.ask.body"),
+            yes: PickerCopy.string("usage.ask.yes"), no: PickerCopy.string("usage.ask.no")))
     }
 }

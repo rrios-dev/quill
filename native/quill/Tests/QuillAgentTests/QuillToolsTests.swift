@@ -148,6 +148,37 @@ struct QuillToolsTests {
         }
     }
 
+    @Test("a meeting is transcribed from the agent: apps, start, status, stop and wait reach the app as asked")
+    func transcribing() async throws {
+        let fixture = try fixture()
+        let asked = Asked()
+        let tools = QuillTools(dataDirectory: fixture.directory) { request in
+            asked.set(request)
+            switch request {
+            case .stopListening, .waitForMeeting:
+                return AgentReply(text: "Saved.", details: ["meetingId": fixture.meetingID.uuidString])
+            default:
+                return AgentReply(text: "ok", details: ["state": "listening"])
+            }
+        }
+        _ = try await run(tools.listMeetingApps)
+        #expect(asked.request == .meetingApps)
+        _ = try await run(tools.startListening)
+        #expect(asked.request == .startListening(appID: nil, language: nil, stopWhenCallEnds: false))
+        _ = try await run(tools.startListening, ["app_id": "teams", "language": "en_US", "stop_when_call_ends": true])
+        #expect(asked.request == .startListening(appID: "teams", language: "en_US", stopWhenCallEnds: true))
+        _ = try await run(tools.getListeningStatus)
+        #expect(asked.request == .listeningStatus(lines: 20))
+        let stopped = try await run(tools.stopListening)
+        #expect(asked.request == .stopListening)
+        #expect(stopped.structured?["meetingId"]?.stringValue == fixture.meetingID.uuidString)
+        _ = try await run(tools.waitForMeeting, ["seconds": 30])
+        #expect(asked.request == .waitForMeeting(seconds: 30))
+        // The channel to the app times out at five minutes: a wait cannot ask for more.
+        await #expect(throws: ToolError.self) { try await run(tools.waitForMeeting, ["seconds": 600]) }
+        await #expect(throws: ToolError.self) { try await run(tools.getListeningStatus, ["lines": 500]) }
+    }
+
     @Test("after an update the app hangs up, and the agent is told to reconnect")
     func reconnectAfterUpdate() async throws {
         let fixture = try fixture()
@@ -164,7 +195,8 @@ struct QuillToolsTests {
     @Test("actions are marked as such, reads as read-only")
     func annotations() {
         let tools = QuillTools(dataDirectory: URL(fileURLWithPath: "/tmp"))
-        #expect(tools.all.filter { !$0.annotations.readOnly }.map(\.name) == ["synthesize_meeting", "rewrite_text"])
+        #expect(tools.all.filter { !$0.annotations.readOnly }.map(\.name)
+                == ["synthesize_meeting", "rewrite_text", "start_listening", "stop_listening"])
         #expect(tools.all.filter { $0.annotations.openWorld }.count == 2)
     }
 

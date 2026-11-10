@@ -185,6 +185,12 @@ public struct SelectionOperations: Sendable {
         return ScreenGeometry.cocoaRect(fromAccessibility: rect, primaryScreenHeight: primaryScreenHeight)
     }
 
+    /// The element's frame in Cocoa screen coordinates, when its app reports one.
+    public func frame(of element: AccessibilityElement, primaryScreenHeight: CGFloat) -> CGRect? {
+        guard let rect = try? accessibility.frame(of: element).get(), !rect.isNull, rect.width > 0, rect.height > 0 else { return nil }
+        return ScreenGeometry.cocoaRect(fromAccessibility: rect, primaryScreenHeight: primaryScreenHeight)
+    }
+
     // MARK: Writing
 
     /// Writes `text` through accessibility (`kAXSelectedText`). Can report success

@@ -26,6 +26,12 @@ enum DebugHooks {
     /// then quit (the picker's design review, `docs/initiatives/quill/qa/`).
     static var snapshotsPicker: Bool { value("QUILL_SNAPSHOT_PICKER") != nil }
 
+    /// `QUILL_TRUST_SAME_USER=1` — an ad hoc build (no Team ID) sends text to whatever
+    /// listens on Batuta's local-API socket as this user, as Batuta's own
+    /// `BATUTA_TRUST_SAME_USER` does the other way. Without it such a build never connects,
+    /// and dictation stays on the Mac (shared-control S6 R2). Signed builds ignore it.
+    static var trustsSameUserForBatuta: Bool { value("QUILL_TRUST_SAME_USER") == "1" }
+
     /// `QUILL_LOG_HOSTS=1` — log the host of every request a provider makes (P5-T5).
     static var logsHosts: Bool { value("QUILL_LOG_HOSTS") != nil }
 

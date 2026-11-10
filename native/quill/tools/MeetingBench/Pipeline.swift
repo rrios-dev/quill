@@ -56,8 +56,9 @@ enum Pipeline {
                 if channel == .others { othersSamples = samples }
                 guard transcribes else { continue }
                 group.addTask {
-                    let transcriber = try await ChannelTranscriber(channel: channel, locale: locale)
-                    try await transcriber.start { collected.append($0) }
+                    let transcriber = try await ChannelTranscriber(channel: channel, locale: locale,
+                                                                   reporting: LatencyBench.reporting())
+                    try await transcriber.start({ collected.append($0) }, onDraft: { _ in })
                     // The blocks a 48 kHz device delivers, resampled: 4096 frames at a time.
                     let block = 4096
                     for offset in stride(from: 0, to: samples.count, by: block) {
@@ -98,6 +99,18 @@ enum Pipeline {
         }
 
         var report = score(reference: reference, raw: raw, transcript: transcript, turns: turns, transcribes: transcribes)
+        // How much of the end-of-meeting measuring the live prints save (EFFICIENCY.md E1):
+        // sentences long enough to measure that the separation left with the times they
+        // were heard with.
+        let heard = Set(raw.segments.filter { $0.channel == .others }.map { segment -> [Double] in
+            let span = SentencePrints.span(of: segment)
+            return [span.start, span.end]
+        })
+        let measurable = transcript.segments.filter { $0.channel == .others && $0.end - $0.start >= 1 }
+        if !measurable.isEmpty {
+            let whole = measurable.filter { heard.contains([$0.start, $0.end]) }.count
+            report.notes.append("\(whole) of \(measurable.count) sentences keep the times they were heard with")
+        }
         report.audioSeconds = audioSeconds
         report.processingSeconds = Date().timeIntervalSince(began)
         report.notes += notes

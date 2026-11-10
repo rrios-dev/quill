@@ -168,6 +168,26 @@ struct ReplaceTests {
         #expect(rig.pasteboard.string() == "Hello")
     }
 
+    @Test("dictation: what was said is inserted at the cursor, where the field had nothing selected")
+    func dictatedInsertion() async {
+        let rig = Rig()
+        rig.accessibility.nodes["field"]?.values["AXSelectedText"] = .string("")
+        rig.accessibility.nodes["field"]?.values["AXSelectedTextRange"] = .range(CFRange(location: 11, length: 0))
+        let dictated = Capture(text: "nos vemos el jueves", app: AppIdentity(pid: 7, bundleIdentifier: "com.example.editor"),
+                               element: AccessibilityElement(fake: "field"), range: CFRange(location: 11, length: 0),
+                               editability: .editable, formatting: .plain, method: .accessibility, fieldSelection: "")
+        let outcome = await rig.replace("Nos vemos el jueves.", capture: dictated)
+        #expect(outcome != .copiedSelectionChanged, "the field's empty selection is what dictation captured")
+        #expect(rig.keys.postedShortcuts.contains("v"))
+
+        // Without saying what the field had, the said text is taken for the selection: copied.
+        let old = Rig()
+        old.accessibility.nodes["field"]?.values["AXSelectedText"] = .string("")
+        var legacy = dictated
+        legacy.fieldSelection = nil
+        #expect(await old.replace("Nos vemos el jueves.", capture: legacy) == .copiedSelectionChanged)
+    }
+
     @Test("uncertain targets are copied unless pasted anyway, which drops trailing line breaks; read-only-only is always copied")
     func editability() async {
         let uncertain = Rig()

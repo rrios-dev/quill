@@ -8,6 +8,17 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case synthesize(meetingID: UUID, focusID: String?)
     /// Rewrite a text with a profile, found by id or name.
     case rewrite(text: String, profile: String)
+    /// The apps that could hold a meeting now, and what Quill is doing.
+    case meetingApps
+    /// Start transcribing an app (nil: the one in a call), optionally in a language, and
+    /// stop on its own when the call ends.
+    case startListening(appID: String?, language: String?, stopWhenCallEnds: Bool)
+    /// What Quill is transcribing, with the last `lines` lines heard.
+    case listeningStatus(lines: Int)
+    /// Stop transcribing and save the meeting.
+    case stopListening
+    /// Wait until the meeting being transcribed ends and is saved, up to `seconds`.
+    case waitForMeeting(seconds: Int)
 
     /// The app's socket, inside its data directory.
     public static func socketPath(dataDirectory: URL) -> String {

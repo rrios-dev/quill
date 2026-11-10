@@ -22,6 +22,7 @@ let package = Package(
         .library(name: "ListenKit", targets: ["ListenKit"]),
         .library(name: "SynthesisKit", targets: ["SynthesisKit"]),
         .library(name: "MeetingKit", targets: ["MeetingKit"]),
+        .library(name: "RemoteTyping", targets: ["RemoteTyping"]),
         .executable(name: "Quill", targets: ["Quill"]),
         .executable(name: "quill-mcp", targets: ["QuillMCP"]),
         .executable(name: "quill-bench", targets: ["QuillBench"]),
@@ -107,6 +108,20 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
 
+        // Typing on the computer that has the keyboard when Batuta lends it to another one
+        // (shared-control S6 R2): the port, the decision, and the adapter over Batuta's local
+        // API. Its own target so AgentHost's socket and code-signing checks stay out of the
+        // rest; nothing of Batuta's, so Quill builds without it.
+        .target(
+            name: "RemoteTyping",
+            dependencies: [
+                .product(name: "AgentHost", package: "Ambar"),
+                .product(name: "MCPKit", package: "mcpkit"),
+            ],
+            path: "packages/RemoteTyping",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+
         // Telling the other people in a meeting apart (diarization), over FluidAudio.
         // Its own target so the dependency stays out of everything else.
         .target(
@@ -148,10 +163,12 @@ let package = Package(
             name: "Quill",
             dependencies: [
                 "QuillSupport", "SelectionKit", "ModelKit", "RewriteKit", "ListenKit", "SpeakerKit",
-                "SynthesisKit", "MeetingKit", "QuillAgent",
+                "SynthesisKit", "MeetingKit", "QuillAgent", "RemoteTyping",
                 .product(name: "MCPKit", package: "mcpkit"),
                 .product(name: "AppCore", package: "Ambar"),
                 .product(name: "GlassUI", package: "Ambar"),
+                // Ámbar's dictation engine, for dictate and rewrite (EFFICIENCY.md E8).
+                .product(name: "VoiceKit", package: "Ambar"),
             ],
             path: "apps/Quill",
             // Copied into the bundle by Scripts/make-app.sh, not resources of the target.
@@ -239,8 +256,16 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
+            name: "RemoteTypingTests",
+            dependencies: ["RemoteTyping", .product(name: "AgentHost", package: "Ambar"),
+                           .product(name: "MCPKit", package: "mcpkit")],
+            path: "Tests/RemoteTypingTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
             name: "QuillTests",
-            dependencies: ["Quill", "QuillSupport", "RewriteKit", "ModelKit"],
+            dependencies: ["Quill", "QuillSupport", "RewriteKit", "ModelKit", "RemoteTyping",
+                           .product(name: "VoiceKit", package: "Ambar")],
             path: "Tests/QuillTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),

@@ -98,10 +98,12 @@ def main():
     check("A1", info["serverInfo"]["name"] == "quill", f"server {info['serverInfo']} protocol {info['protocolVersion']}")
     tools = session.request("tools/list")["result"]["tools"]
     names = [t["name"] for t in tools]
-    check("A1", len(names) == 8, f"8 tools: {', '.join(names)}")
+    check("A1", len(names) == 13, f"13 tools: {', '.join(names)}")
     actions = [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]]
-    check("A1", actions == ["synthesize_meeting", "rewrite_text"] and all(
-        t["annotations"]["openWorldHint"] for t in tools if t["name"] in actions), f"actions marked as such: {actions}")
+    # Spending the user's model key reaches beyond the Mac; transcribing stays on it (J-16).
+    check("A1", actions == ["synthesize_meeting", "rewrite_text", "start_listening", "stop_listening"] and all(
+        t["annotations"]["openWorldHint"] == (t["name"] in ["synthesize_meeting", "rewrite_text"]) for t in tools
+        if t["name"] in actions), f"actions marked as such: {actions}")
 
     # ------------------------------------------------------------------ A2 the switch
     json.dump({"enabled": False}, open(ACCESS, "w"))

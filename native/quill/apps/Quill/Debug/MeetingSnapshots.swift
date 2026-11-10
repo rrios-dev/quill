@@ -3,6 +3,7 @@ import AppKit
 import Foundation
 import ListenKit
 import MeetingKit
+import SwiftUI
 import SynthesisKit
 
 /// `QUILL_SNAPSHOT_MEETINGS` (see `DebugHooks.snapshotsMeetings`): every meetings
@@ -61,6 +62,7 @@ enum MeetingSnapshots {
         meetings.debugShowLive(app: teams, segments: shown.map { line in
             TranscriptSegment(channel: line.name == "Yo" ? .me : .others, start: line.start, end: line.start + 5, text: line.said)
         })
+        meetings.debugDraft(DebugHooks.value("QUILL_SNAPSHOT_DRAFT") ?? "y lo que falta es cerrar la fecha con el", channel: .others)
         await settle()
         await snap("live", meetings.debugLiveWindow)
         // During the meeting: voices told apart and partly named, translated, then folded
@@ -112,6 +114,19 @@ enum MeetingSnapshots {
             await settle()
             await snap("meeting-filter", meetings.debugMeetingWindow(record.id))
             model.toggleSelection(record.labels.dropFirst().first ?? "me")
+            // Two people share a name: the voice asks which one it is (EFFICIENCY.md E4).
+            // The first voice after the user's, so its card is in view.
+            if let label = record.labels.first(where: { $0 != "me" }),
+               let index = model.rows.firstIndex(where: { $0.label == label }) {
+                _ = try? meetings.store.remember(nil, name: "Fran", roleID: "product-owner")
+                _ = try? meetings.store.remember(nil, name: "Fran", roleID: "client")
+                model.rows[index].name = "Fran"
+                // As typing does: the voice is untied from the person it had.
+                model.nameChanged(at: index)
+                model.commitPeople()
+                await settle()
+                await snap("meeting-choose", meetings.debugMeetingWindow(record.id))
+            }
             model.choose(focus: "work")
             // Every layout (MeetingLayout): the owner's portrait screen whole and halved
             // by a tiler, a narrow tall tile, a small window.
@@ -134,6 +149,23 @@ enum MeetingSnapshots {
         await snap("history", meetings.history?.shownWindow)
         meetings.history?.shownWindow?.close()
 
+        // The vocabulary by owner (EFFICIENCY.md E6).
+        let people = meetings.store.people()
+        _ = try? meetings.store.setVocabulary(VocabularyEntry(heard: "cuber netes", written: "Kubernetes", scope: .global))
+        _ = try? meetings.store.setVocabulary(VocabularyEntry(heard: "yira", written: "Jira", scope: .me))
+        if let first = people.first {
+            _ = try? meetings.store.setVocabulary(VocabularyEntry(heard: "data dog", written: "Datadog", scope: .person(first.id)))
+            _ = try? meetings.store.setVocabulary(VocabularyEntry(heard: "grafana", written: "Grafana", scope: .person(first.id)))
+        }
+        // The vocabulary section alone: in Settings it sits below the fold.
+        let vocabulary = NSWindow(contentViewController: NSHostingController(rootView:
+            Form { VocabularySection(store: meetings.store) {} }.formStyle(.grouped).frame(width: 640, height: 520)))
+        vocabulary.title = MeetingCopy.t("pane.vocabulary")
+        vocabulary.center()
+        vocabulary.makeKeyAndOrderFront(nil)
+        await settle()
+        await snap("vocabulary", vocabulary)
+        vocabulary.close()
         openSettings()
         await settle()
         await settle()

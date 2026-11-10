@@ -2,9 +2,30 @@
 "menu.quit %@" = "Quit %@";
 
 /* Status bar menu — rewrite, shortcut, permission, profiles, provider */
+"menu.dictate" = "Dictate and Rewrite";
+"dictation.preparing" = "Getting ready…";
+"dictation.listening" = "Listening";
+"dictation.finishing" = "Finishing…";
+"dictation.failed" = "Dictation failed";
+"dictation.waiting" = "Speak…";
+"dictation.hint %@" = "%@ to finish";
+"general.dictation.note %@" = "Hold %@ to dictate and press it again to finish. What you say goes through your profiles and is written where the cursor is.";
+"menu.dictate.hold %@" = "hold %@";
+"dictation.heard %@" = "Said: %@";
+"dictation.cancel" = "Cancel";
+"dictation.ambar" = "Ámbar's dictionary";
+"dictation.ambar.help" = "The words you taught Ámbar's dictation are written the same way here.";
+"dictation.error.model" = "The speech model for this language is missing. Download it in System Settings › Keyboard › Dictation.";
+"dictation.error.microphone" = "The microphone could not be opened. Check that one is connected and that Quill may use it.";
+"dictation.error.busy" = "The system's speech languages are all in use. Close a dictation open in another app and try again.";
+"dictation.error.other" = "Dictation stopped. Try again.";
 "menu.rewrite" = "Rewrite Selection";
 "menu.shortcut.inUse %@" = "%@ is in use by another app";
 "menu.shortcut.failed %@" = "%@ could not be registered";
+"menu.batuta.accessOff" = "On your other computers the shortcut doesn't reach Quill: turn on Your apps in Batuta";
+"menu.batuta.refused" = "On your other computers the shortcut doesn't reach Quill: Batuta turned the connection down";
+"menu.batuta.untrustedServer" = "On your other computers the shortcut doesn't reach Quill: what answers as Batuta isn't Batuta";
+"menu.batuta.noAnswer" = "On your other computers the shortcut doesn't reach Quill: Batuta didn't answer";
 "menu.permission.allow" = "Allow Accessibility…";
 "menu.permission.restart %@" = "Restart %@ to Finish Enabling";
 "menu.nextRewrite" = "Next Rewrite";
@@ -115,6 +136,20 @@
 "toast.focusNotReturned" = "Copied — couldn't return to the app";
 "toast.notEditable" = "Copied — this text can't be edited here";
 "toast.clipboardBusy" = "The clipboard is busy. Try again in a moment.";
+"toast.typedOn %@" = "Typed on %@";
+"toast.remote.accessOff" = "on this Mac: Batuta lets no app type until you turn on Your apps";
+"toast.remote.refused" = "on this Mac: Batuta turned the connection down";
+"toast.remote.untrustedServer" = "on this Mac: what answers as Batuta isn't Batuta, so nothing was sent to it";
+"toast.remote.noAnswer" = "on this Mac: Batuta didn't answer in time";
+"toast.remote.cannotType %@" = "on this Mac: %@ couldn't type the text";
+"toast.remote.focusMoved %@" = "on this Mac: the keyboard is no longer on %@";
+"toast.selection.nothingSelected %@" = "Nothing is selected on %@";
+"toast.selection.unreadable %@" = "Quill can't read the selection on %@";
+"toast.selection.accessOff" = "Batuta won't let Quill read the other computer until you turn on Your apps";
+"toast.selection.refused" = "Batuta turned the connection down, so Quill read nothing";
+"toast.selection.untrustedServer" = "What answers as Batuta isn't Batuta, so Quill asked it nothing";
+"toast.selection.noAnswer" = "Batuta didn't answer in time. Try again.";
+"toast.selection.focusMoved %@" = "The keyboard left %@ before the selection was read";
 
 /* Presentation mapping (P3-T7): states, tradeoffs, recipients */
 "picker.failure.malformed" = "The provider's answer couldn't be read.";
@@ -419,6 +454,7 @@
 "offer.decline" = "Not now";
 "live.title %@" = "Listening to %@";
 "live.subtitle" = "text only, no audio kept";
+"live.draft %@" = "Being said: %@";
 "live.waiting" = "Waiting for someone to speak…";
 "live.note" = "Voices are told apart every two minutes and at the end: the names and roles you give are kept with the meeting.";
 "live.discard" = "Discard";
@@ -469,10 +505,28 @@
 "meeting.learnt.owner %@" = "in %@'s vocabulary";
 "meeting.learnt.everybody" = "for everybody (this voice has no name yet)";
 "meeting.learnt.also %lld" = "Other sentences of this voice corrected too: %lld.";
+"meeting.learnt.voice" = "waiting on this voice: it goes to its person once you name them";
+"meeting.learnt.held %@" = "I am not learning %@ on my own: it is an ordinary word and would change sentences where it was right.";
+"meeting.learnt.held.learn" = "Learn it anyway";
+"people.choose %@" = "More than one person is called %@, or this voice does not sound like the one I know. Who is it?";
+"people.choose.new" = "Someone else";
+"pane.vocabulary.pending" = "Unnamed voice";
 "meeting.learnt.global" = "Use for everybody";
 "meeting.learnt.global.help" = "You already corrected it for someone else: apply it to anyone who says it";
 "meeting.learnt.undo" = "Undo";
 "meeting.learnt.dismiss" = "Dismiss";
+"pane.vocabulary.help" = "Quill learns a word when you correct it in a transcript, for whoever said it. You can also add one here. Saved meetings are written again when it changes.";
+"pane.vocabulary.add" = "Add a word…";
+"pane.vocabulary.change" = "Change a word";
+"pane.vocabulary.edit %@" = "Change %@";
+"pane.vocabulary.uses %lld" = "%lld times";
+"pane.vocabulary.heard" = "What Quill hears";
+"pane.vocabulary.heard.prompt" = "cuber netes";
+"pane.vocabulary.written" = "How it is written";
+"pane.vocabulary.written.prompt" = "Kubernetes";
+"pane.vocabulary.owner" = "Who says it";
+"pane.vocabulary.cancel" = "Cancel";
+"pane.vocabulary.save" = "Save";
 "pane.vocabulary" = "Vocabulary";
 "pane.vocabulary.empty" = "Correct a word in a meeting's transcript and Quill will write it right next time, for whoever said it.";
 "pane.vocabulary.forget %@" = "Forget %@";
@@ -646,7 +700,7 @@
 "settings.agents" = "Agents";
 "agents.section.access" = "Agent access";
 "agents.toggle" = "Let Claude Code, Codex and other agents use Quill";
-"agents.help" = "They can read your meetings (transcripts, people and syntheses) and your profiles, and ask Quill for a synthesis or a rewrite. Before asking for those, the agent checks with you.";
+"agents.help" = "They can read your meetings and your profiles, and ask Quill for a synthesis or a rewrite. They can also start or stop transcribing the call you choose, with the live panel on screen. Before acting, they check with you.";
 "agents.privacy" = "What the agent reads leaves your Mac for that agent's model (Anthropic, OpenAI…). This is a permission, not a lock: any program running as you can read these files.";
 "agents.section.connect" = "Connect";
 "agents.connect" = "Connect";

@@ -74,15 +74,10 @@ enum Metrics {
         guard !refSpeakers.isEmpty, !hypSpeakers.isEmpty else { return [:] }
         let size = max(refSpeakers.count, hypSpeakers.count)
         var overlap = [[Double]](repeating: [Double](repeating: 0, count: size), count: size)
+        let shared = sharedTime(hypothesis, reference)
         for (h, hypSpeaker) in hypSpeakers.enumerated() {
             for (r, refSpeaker) in refSpeakers.enumerated() {
-                var shared = 0.0
-                for a in hypothesis where a.speaker == hypSpeaker {
-                    for b in reference where b.speaker == refSpeaker {
-                        shared += max(0, min(a.end, b.end) - max(a.start, b.start))
-                    }
-                }
-                overlap[h][r] = shared
+                overlap[h][r] = shared[hypSpeaker]?[refSpeaker] ?? 0
             }
         }
         let maxValue = overlap.flatMap { $0 }.max() ?? 0
@@ -90,6 +85,27 @@ enum Metrics {
         var result: [String: String] = [:]
         for (h, r) in assignment.enumerated() where h < hypSpeakers.count && r < refSpeakers.count && overlap[h][r] > 0 {
             result[hypSpeakers[h]] = refSpeakers[r]
+        }
+        return result
+    }
+
+    /// Seconds each speaker of `a` shares with each speaker of `b`. Turns are found by the
+    /// seconds they cover, so an hour of turns against an hour of turns stays linear.
+    static func sharedTime(_ a: [Turn], _ b: [Turn]) -> [String: [String: Double]] {
+        var buckets: [Int: [Int]] = [:]
+        for (index, turn) in b.enumerated() where turn.end > turn.start {
+            for second in Int(turn.start.rounded(.down))...Int(turn.end.rounded(.down)) { buckets[second, default: []].append(index) }
+        }
+        var result: [String: [String: Double]] = [:]
+        for turn in a where turn.end > turn.start {
+            var seen = Set<Int>()
+            for second in Int(turn.start.rounded(.down))...Int(turn.end.rounded(.down)) {
+                for index in buckets[second] ?? [] where seen.insert(index).inserted {
+                    let other = b[index]
+                    let overlap = min(turn.end, other.end) - max(turn.start, other.start)
+                    if overlap > 0 { result[turn.speaker, default: [:]][other.speaker, default: 0] += overlap }
+                }
+            }
         }
         return result
     }

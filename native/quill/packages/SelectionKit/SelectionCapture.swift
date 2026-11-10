@@ -39,12 +39,17 @@ public struct Capture: Sendable {
     public var bounds: CGRect?
     public var method: CaptureMethod
     public var elapsed: Duration
+    /// What the field had selected when the capture was taken, when that is not `text`:
+    /// dictation rewrites what was said, and inserts it where the cursor was, over an
+    /// empty selection (EFFICIENCY.md E8). Nil means the selection is `text`.
+    public var fieldSelection: String?
 
     /// Public so the app can build one for the Services entry (the text arrives through
     /// the service, the element through accessibility) and its tests can build fakes.
     public init(text: String, app: AppIdentity, element: AccessibilityElement? = nil, range: CFRange? = nil,
                 editability: Editability, formatting: FormattingState = .unknown, bounds: CGRect? = nil,
-                method: CaptureMethod, elapsed: Duration = .zero) {
+                method: CaptureMethod, elapsed: Duration = .zero, fieldSelection: String? = nil) {
+        self.fieldSelection = fieldSelection
         self.text = text
         self.app = app
         self.element = element

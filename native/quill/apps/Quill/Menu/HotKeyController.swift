@@ -1,6 +1,7 @@
 import AppKit
 import AppCore
 import Carbon.HIToolbox
+import RemoteTyping
 import RewriteKit
 
 /// The global shortcut, registered **exclusively** (ARCHITECTURE §5.1): a combination
@@ -20,8 +21,9 @@ final class HotKeyController {
     /// ⌥⌘R and ⇧⌘R are Safari's.
     static let defaultShortcut = KeyCombination(
         keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(controlKey | optionKey))
-
-    typealias Register = @MainActor (KeyCombination, @escaping () -> Void) -> Result<UInt32, HotKeyRegistrationError>
+    /// Registers a combination with what its press and its release do. The release lets
+    /// the same shortcut tell a tap (rewrite) from a hold (dictate, EFFICIENCY.md E8).
+    typealias Register = @MainActor (KeyCombination, @escaping () -> Void, (() -> Void)?) -> Result<UInt32, HotKeyRegistrationError>
     typealias Unregister = @MainActor (UInt32) -> Void
 
     private(set) var state: State = .unregistered
@@ -30,7 +32,7 @@ final class HotKeyController {
     private let unregister: Unregister
 
     init(
-        register: @escaping Register = { HotKeyCenter.shared.register($0, options: .exclusive, action: $1) },
+        register: @escaping Register = { HotKeyCenter.shared.register($0, options: .exclusive, action: $1, onRelease: $2) },
         unregister: @escaping Unregister = { HotKeyCenter.shared.unregister($0) }
     ) {
         self.registerExclusive = register
@@ -38,10 +40,10 @@ final class HotKeyController {
     }
 
     /// Replaces the current registration with `combination`.
-    func register(_ combination: KeyCombination, action: @escaping () -> Void) {
+    func register(_ combination: KeyCombination, action: @escaping () -> Void, onRelease: (() -> Void)? = nil) {
         if let identifier { unregister(identifier) }
         identifier = nil
-        switch registerExclusive(combination, action) {
+        switch registerExclusive(combination, action, onRelease) {
         case .success(let id):
             identifier = id
             state = .registered(combination)
@@ -69,8 +71,28 @@ final class HotKeyController {
         case .registered(let combination), .inUse(let combination), .failed(let combination, _): combination
         }
     }
+
+    /// The shortcuts Batuta is asked to keep on the Mac while another computer has the
+    /// keyboard (shared-control S6 R6): only one Quill holds, since one that did not register
+    /// would never fire, and keeping it would only take it from the other computer's apps.
+    var reservedChords: [RemoteChord] {
+        guard case .registered(let combination) = state else { return [] }
+        return [RemoteChord(combination)]
+    }
 }
 
 extension KeyCombination {
     init(_ stored: StoredShortcut) { self.init(keyCode: stored.keyCode, modifiers: stored.modifiers) }
+}
+
+extension RemoteChord {
+    /// A Carbon shortcut as Batuta's `reserve_hotkeys` takes it: the same virtual key code,
+    /// and the modifiers by name.
+    init(_ combination: KeyCombination) {
+        let flags: [(UInt32, Modifier)] = [
+            (UInt32(cmdKey), .command), (UInt32(optionKey), .option), (UInt32(controlKey), .control), (UInt32(shiftKey), .shift),
+        ]
+        self.init(keyCode: Int(combination.keyCode),
+                  modifiers: Set(flags.filter { combination.modifiers & $0.0 != 0 }.map(\.1)))
+    }
 }

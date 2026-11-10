@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import ModelKit
+import RemoteTyping
 import RewriteKit
 import SelectionKit
 
@@ -116,6 +117,8 @@ enum AppliedOutcome: Equatable {
     case replace(ReplaceOutcome)
     /// ⌘C, or Return on a target that cannot be pasted into.
     case copied
+    /// Typed on the computer Batuta lent the keyboard to, named here (shared-control S6 R2).
+    case typed(computer: String)
 }
 
 /// The picker's keys (PRODUCT §4.1 columns).
@@ -140,8 +143,12 @@ enum SessionEffect: Equatable {
     case showPicker
     case close
     /// "Rewritten with <profile> · ⌘Z to undo" after a direct apply, or the outcome's
-    /// line after the picker closed (PRODUCT §4.1 Applied).
-    case toast(AppliedOutcome, profile: String, direct: Bool)
+    /// line after the picker closed (PRODUCT §4.1 Applied). `remote` is why the text stayed
+    /// on this Mac when Batuta has the keyboard elsewhere, said once (shared-control S6 R2).
+    case toast(AppliedOutcome, profile: String, direct: Bool, remote: RemoteRefusal? = nil)
+    /// The shortcut fired while Batuta had the keyboard on another computer whose selection
+    /// cannot be used: say why, alone; nothing else happens (shared-control S6 R6).
+    case selectionNotice(RemoteLanding.SelectionNotice)
     case openSettings(SettingsPane)
     case openAccessibilitySettings
 
@@ -166,6 +173,10 @@ enum Trigger {
     /// The Services entry delivered the capture (PLAN P3-T6). Hosted rewrites wait for
     /// Return, so another process cannot spend the user's key unattended.
     case services(Capture)
+    /// Dictate and rewrite (EFFICIENCY.md E8): the user said `Capture.text` for the app
+    /// and the place the capture names. Started by the user's own shortcut, so it runs as
+    /// the shortcut does.
+    case dictated(Capture)
 }
 
 /// Reading and replacing text, for the session. The live one wraps SelectionKit's

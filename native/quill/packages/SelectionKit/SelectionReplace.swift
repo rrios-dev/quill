@@ -89,7 +89,8 @@ public struct SelectionReplacer: Sendable {
         // 4. The selection is what was captured.
         if let element = capture.element, capture.range != nil || capture.method == .accessibility {
             let now = operations.readSelection(of: element)
-            let sameText = now.text.map { $0 == capture.text } ?? (capture.method == .copy)
+            let expected = capture.fieldSelection ?? capture.text
+            let sameText = now.text.map { $0 == expected } ?? (capture.method == .copy)
             let sameRange = capture.range.map { range in
                 now.range.map { $0.location == range.location && $0.length == range.length } ?? false
             } ?? true

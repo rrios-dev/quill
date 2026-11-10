@@ -188,16 +188,27 @@ struct MeetingTranscriptView: View {
     private func learntBanner(_ notice: MeetingFlowModel.LearntNotice) -> some View {
         let pairs = notice.pairs.map { "«\($0.heard)» → «\($0.written)»" }.joined(separator: ", ")
         let owner = notice.owner.map { String(localized: "meeting.learnt.owner \($0)", bundle: .localized) }
-            ?? MeetingCopy.t("meeting.learnt.everybody")
+            ?? MeetingCopy.t("meeting.learnt.voice")
+        let held = notice.held.map { "«\($0.heard)» → «\($0.written)»" }.joined(separator: ", ")
         return VStack(alignment: .leading, spacing: 6) {
-            Label(String(localized: "meeting.learnt \(pairs) \(owner)", bundle: .localized), systemImage: "character.book.closed")
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(3)
+            if !notice.pairs.isEmpty {
+                Label(String(localized: "meeting.learnt \(pairs) \(owner)", bundle: .localized), systemImage: "character.book.closed")
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(3)
+            }
+            if !notice.held.isEmpty {
+                Label(String(localized: "meeting.learnt.held \(held)", bundle: .localized), systemImage: "hand.raised")
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(3)
+            }
             if notice.alsoCorrected > 0 {
                 Text(String(localized: "meeting.learnt.also \(notice.alsoCorrected)", bundle: .localized))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             HStack(spacing: 6) {
+                if !notice.held.isEmpty {
+                    Button(MeetingCopy.t("meeting.learnt.held.learn"), action: model.learnHeld)
+                }
                 if !notice.promotable.isEmpty {
                     Button(MeetingCopy.t("meeting.learnt.global"), action: model.makeCorrectionGlobal)
                         .buttonStyle(.borderedProminent)

@@ -137,7 +137,7 @@ public struct Person: Codable, Identifiable, Hashable, Sendable {
 }
 
 /// What the history list shows, without loading every transcript.
-public struct MeetingSummary: Identifiable, Hashable, Sendable {
+public struct MeetingSummary: Codable, Identifiable, Hashable, Sendable {
     public var id: UUID
     public var title: String
     public var sourceApp: String
@@ -145,4 +145,34 @@ public struct MeetingSummary: Identifiable, Hashable, Sendable {
     public var duration: Double
     public var peopleCount: Int
     public var synthesisCount: Int
+}
+
+/// One meeting in `index.json`: its summary, its folded search text and the people
+/// named in it, with the file's size and date to tell when it changed.
+struct MeetingIndexEntry: Codable, Sendable {
+    struct Stamp: Codable, Equatable, Sendable {
+        var size: Int
+        var modified: Double
+    }
+
+    var summary: MeetingSummary
+    var searchText: String
+    var people: [UUID]
+    var stamp: Stamp
+
+    init(_ meeting: MeetingRecord, stamp: Stamp) {
+        summary = MeetingSummary(id: meeting.id, title: meeting.title, sourceApp: meeting.sourceApp,
+                                 startedAt: meeting.startedAt, duration: meeting.duration,
+                                 peopleCount: meeting.labels.count, synthesisCount: meeting.syntheses.count)
+        searchText = MeetingStore.fold(meeting.searchableText)
+        people = Array(Set(meeting.people.values))
+        self.stamp = stamp
+    }
+}
+
+struct MeetingIndex: Codable, Sendable {
+    /// Raised when what an entry holds changes: an index of another version is rebuilt.
+    static let version = 1
+    var version = MeetingIndex.version
+    var entries: [MeetingIndexEntry]
 }

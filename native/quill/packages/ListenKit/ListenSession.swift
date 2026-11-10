@@ -45,6 +45,12 @@ public final class ListenSession: @unchecked Sendable {
         /// How long the microphone's audio waits before it is transcribed, so a mute
         /// noticed a moment late still covers what was said in that moment.
         public var gateDelay: Double = 0.6
+        /// What the transcribers report besides finished sentences: drafts of the one
+        /// being said, for the live panel. Measured on 2026-11-10 (EFFICIENCY.md E5): a
+        /// word shows 10.6 s after it is said with finished sentences only, 4.5 s with
+        /// drafts, 0.4 s with fast drafts; fast costs the finished words about a point of
+        /// WER (others 3.5 → 3.4 %, me 7.2 → 8.9 % on c2-es), inside the gate.
+        public var reporting: Set<SpeechTranscriber.ReportingOption> = [.volatileResults, .fastResults]
 
         public init(
             target: ProcessTap.Target,
@@ -99,9 +105,13 @@ public final class ListenSession: @unchecked Sendable {
     ///
     /// - Parameter onHealth: a channel stopped delivering audio (`false`) or came back
     ///   (`true`). Called from the watchdog, off the main thread.
+    ///
+    /// - Parameter onDraft: the words of a sentence still being said, when
+    ///   `Configuration.reporting` asks for them.
     public func start(
         onSegment: (@Sendable (TranscriptSegment) -> Void)? = nil,
-        onHealth: (@Sendable (Channel, Bool) -> Void)? = nil
+        onHealth: (@Sendable (Channel, Bool) -> Void)? = nil,
+        onDraft: (@Sendable (TranscriptDraft) -> Void)? = nil
     ) async throws {
         self.onSegment = onSegment
         self.onHealth = onHealth
@@ -140,16 +150,17 @@ public final class ListenSession: @unchecked Sendable {
             throw ListenError.modelNotInstalled(locale.identifier)
         }
 
-        let others = try await ChannelTranscriber(channel: .others, locale: locale)
+        let reporting = onDraft == nil ? [] : configuration.reporting
+        let others = try await ChannelTranscriber(channel: .others, locale: locale, reporting: reporting)
         transcribers.append(others)
         othersTranscriber = others
-        try await others.start { [weak self] in self?.record($0) }
+        try await others.start({ [weak self] in self?.record($0) }, onDraft: onDraft)
 
         if configuration.includeMicrophone {
-            let me = try await ChannelTranscriber(channel: .me, locale: locale)
+            let me = try await ChannelTranscriber(channel: .me, locale: locale, reporting: reporting)
             transcribers.append(me)
             meTranscriber = me
-            try await me.start { [weak self] in self?.record($0) }
+            try await me.start({ [weak self] in self?.record($0) }, onDraft: onDraft)
         }
 
         // Both channels count time from here: a block that arrives later than the audio
@@ -328,6 +339,9 @@ public final class ListenSession: @unchecked Sendable {
 
     /// The others' audio so far, for a diarization pass during the meeting.
     public func othersAudioSoFar() -> [Float] { othersAudio.copy() }
+
+    /// The others' audio between two moments of the session, for measuring one sentence.
+    public func othersAudio(from start: Double, to end: Double) -> [Float] { othersAudio.copy(from: start, to: end) }
 
     /// The others' audio kept for diarization, handed over once and then forgotten.
     public func takeOthersAudio() -> [Float] { othersAudio.take() }

@@ -1,8 +1,12 @@
 import AppCore
 import AppKit
+import MCPKit
 import QuillSupport
+import RemoteTyping
 import RewriteKit
 import SelectionKit
+import SwiftUI
+import VoiceKit
 
 /// The menu bar agent: owns the status item, its menu, the hot key and the permission
 /// watcher (ARCHITECTURE §5.1).
@@ -11,6 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var environment: AppEnvironment?
     private let hotKey = HotKeyController()
+    /// Dictate and rewrite (EFFICIENCY.md E8): holding ⌃⌥R. The gesture tells a tap from
+    /// a hold; the model loads while the keys are down.
+    private lazy var dictation = makeDictation()
+    private var gesture = ShortcutGesture()
+    private var holdTimer: Task<Void, Never>?
+    private let dictationPanel = DictationPanelController()
     private let permission = PermissionWatcher()
     private let log = QuillLog(category: "app")
     /// Meetings (MEETINGS.md §6). Nil if its data folder cannot be created.
@@ -55,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #endif
 
         registerShortcut()
+        connectToBatuta()
         permission.start()
         do {
             let meetings = try MeetingsCoordinator(environment: environment)
@@ -84,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         listenForMenuDump()
         if DebugHooks.dumpsAccessibility || DebugHooks.snapshotsPicker { Task { await dumpAccessibility() } }
         if let target = DebugHooks.listenTarget { Task { await ListenProbe.run(target: target) } }
+        if DebugHooks.value("QUILL_DICTATE_RUN") != nil { Task { await runDictationProbe() } }
         if let pane = DebugHooks.openSettingsPane.flatMap(SettingsPane.init(rawValue:)) { openSettings(pane) }
         if let id = DebugHooks.openMeeting, let meetings {
             meetings.openMeeting(id, step: .synthesis)
@@ -322,11 +334,195 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     #endif
 
+    // MARK: Dictate and rewrite
+
+    private func makeDictation() -> DictationRewrite {
+        let locale = Locale.current
+        var source: SpeechSession.SourceKind = .microphone
+        #if DEBUG
+        // `QUILL_DICTATE_FILE=<audio>`: dictation hears a file instead of the microphone.
+        if let file = DebugHooks.value("QUILL_DICTATE_FILE") { source = .file(URL(fileURLWithPath: file)) }
+        #endif
+        let model = DictationRewrite(makeSession: { strings in
+            SpeechSession(locale: locale, mode: .live, source: source, contextualStrings: strings)
+        })
+        model.showPanel = { [weak self] visible in self?.showDictationPanel(visible) }
+        model.deliver = { [weak self] text, target in self?.rewriteDictated(text, for: target) }
+        model.onEnded = { [weak self] in self?.gesture.reset() }
+        return model
+    }
+
+    /// The rewrite shortcut — whichever the user recorded — went down. With a rewrite open
+    /// it is the picker's; while dictating it finishes; otherwise it may be a tap or the
+    /// start of a hold.
+    private func shortcutPressed() {
+        if let session, !session.state.isTerminal {
+            Task { await session.handle(.shortcut) }
+            return
+        }
+        switch gesture.press(at: .now) {
+        case .arm:
+            if let target = dictationTarget() { dictation.arm(for: target) }
+            holdTimer?.cancel()
+            holdTimer = Task { [weak self] in
+                try? await Task.sleep(for: ShortcutGesture.holdThreshold)
+                guard !Task.isCancelled, let self else { return }
+                self.perform(self.gesture.thresholdPassed(at: .now))
+            }
+        case let action:
+            perform(action)
+        }
+    }
+
+    private func shortcutReleased() {
+        perform(gesture.release(at: .now))
+    }
+
+    private func perform(_ action: ShortcutGesture.Action) {
+        switch action {
+        case .none, .arm:
+            break
+        case .tap:
+            holdTimer?.cancel()
+            Task { await dictation.disarm() }
+            rewriteSelection()
+        case .startListening:
+            log.info("dictation: holding the shortcut")
+            Task { await dictation.startListening() }
+        case .finish:
+            Task { await dictation.finish() }
+        }
+    }
+
+    /// The menu's "Dictate and Rewrite": hands-free until ⌃⌥R or the menu again.
+    @objc private func dictateAndRewrite() {
+        if let session, !session.state.isTerminal { return }
+        let wasActive = dictation.isActive
+        Task {
+            await dictation.toggle(target: self.dictationTarget())
+            if !wasActive, dictation.isActive { gesture = ShortcutGesture.handsFreeNow() }
+        }
+    }
+
+    /// The app in front and its cursor, now. Never Quill itself.
+    private func dictationTarget() -> DictationTarget? {
+        #if DEBUG
+        // `QUILL_DICTATE_TARGET=<bundle id>`: the words are for that running app.
+        if let bundle = DebugHooks.value("QUILL_DICTATE_TARGET"),
+           let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first {
+            return DictationTarget(app: AppIdentity(pid: app.processIdentifier, bundleIdentifier: bundle),
+                                   selected: "", editability: .uncertain)
+        }
+        #endif
+        guard let app = NSWorkspace.shared.frontmostApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier else {
+            return nil
+        }
+        let operations = SelectionOperations(
+            accessibility: LiveAccessibilityClient(), pasteboard: LivePasteboardClient(), keys: LiveKeyEventPoster())
+        return DictationTarget.locate(app: AppIdentity(pid: app.processIdentifier, bundleIdentifier: app.bundleIdentifier),
+                                      operations: operations,
+                                      primaryScreenHeight: NSScreen.screens.first?.frame.height ?? 0)
+    }
+
+    private func showDictationPanel(_ visible: Bool) {
+        guard visible else {
+            dictationPanel.close()
+            return
+        }
+        let shortcut = hotKey.combination?.displayString ?? HotKeyController.defaultShortcut.displayString
+        dictationPanel.show(DictationPanelView(model: dictation, shortcut: shortcut), near: dictation.target?.placement ?? .none)
+    }
+
+    /// What was said goes through the picker to the place the cursor was when the
+    /// shortcut went down, over what the field had selected then.
+    private func rewriteDictated(_ text: String, for target: DictationTarget) {
+        gesture.reset()
+        guard let environment else { return }
+        usage.count("dictations")
+        do {
+            let session = try makeSession(environment: environment)
+            attach(session)
+            Task { await session.start(.dictated(target.capture(of: text))) }
+        } catch {
+            log.error("could not start a rewrite of a dictation: \(error)")
+        }
+    }
+
+    #if DEBUG
+    /// `QUILL_DICTATE_RUN=1` with `QUILL_DICTATE_FILE`: the dictation shortcut pressed, the
+    /// file heard for `QUILL_DICTATE_SECONDS` (default 6), the shortcut pressed again;
+    /// prints `SNAP dictation <window>` while listening and `SNAP picker <window>` with
+    /// what was said, waiting for `<surface>.done` in `QUILL_SNAPSHOT_ACK`, then quits.
+    private func runDictationProbe() async {
+        func snap(_ surface: String, _ window: NSWindow?) async {
+            print("SNAP \(surface) \(window?.windowNumber ?? -1)")
+            fflush(stdout)
+            guard let acks = DebugHooks.value("QUILL_SNAPSHOT_ACK") else { return }
+            let done = URL(fileURLWithPath: acks).appendingPathComponent("\(surface).done").path
+            for _ in 0..<100 where !FileManager.default.fileExists(atPath: done) {
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+        }
+        try? await Task.sleep(for: .seconds(1))
+        // `QUILL_DICTATE_ACTIVATE=<bundle id>`: that app in front, as when the user presses
+        // the shortcut from it (a debug Quill started from a shell is in front itself).
+        if let bundle = DebugHooks.value("QUILL_DICTATE_ACTIVATE"),
+           let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first {
+            app.activate()
+            try? await Task.sleep(for: .milliseconds(800))
+        }
+        // As the keys would: down, held past the threshold, then let go hands-free.
+        shortcutPressed()
+        try? await Task.sleep(for: ShortcutGesture.holdThreshold + .milliseconds(100))
+        shortcutReleased()
+        print("PROBE front \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "-") phase \(dictation.phase) target \(dictation.target.map { "\($0.app.bundleIdentifier ?? "-") caret \($0.caret.map { "\($0)" } ?? "none") \($0.editability)" } ?? "none")")
+        fflush(stdout)
+        let seconds = DebugHooks.value("QUILL_DICTATE_SECONDS").flatMap(Double.init) ?? 6
+        try? await Task.sleep(for: .seconds(seconds * 0.6))
+        await snap("dictation", dictationPanel.window)
+        try? await Task.sleep(for: .seconds(seconds * 0.4))
+        shortcutPressed()
+        shortcutReleased()
+        for _ in 0..<50 where picker?.window == nil { try? await Task.sleep(for: .milliseconds(200)) }
+        try? await Task.sleep(for: .seconds(1.5))
+        print("DICTATED \(session?.capture?.text ?? "-")")
+        await snap("picker", picker?.window)
+        NSApp.terminate(nil)
+    }
+    #endif
+
     private func registerShortcut() {
         let stored = (try? environment?.settings.settings())?.shortcut
         let combination = stored.map(KeyCombination.init) ?? HotKeyController.defaultShortcut
-        hotKey.register(combination) { [weak self] in self?.rewriteSelection() }
+        hotKey.register(combination, action: { [weak self] in self?.shortcutPressed() },
+                        onRelease: { [weak self] in self?.shortcutReleased() })
         if let problem = hotKey.problem { log.error("shortcut: \(problem)") }
+        batuta.reserve(hotKey.reservedChords)
+    }
+
+    /// Keeps the connection to Batuta from launch, and connects at once when Batuta launches
+    /// rather than at the next attempt (S6 R6).
+    private func connectToBatuta() {
+        batuta.start()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard app?.bundleIdentifier == BatutaKeyboard.bundleIdentifier else { return }
+            MainActor.assumeIsolated { self?.batuta.nudge() }
+        }
+    }
+
+    /// A menu line when Batuta turned Quill's shortcut down: while another computer has the
+    /// keyboard, the shortcut reaches that computer instead of Quill (S6 R6). nil otherwise.
+    static func batutaNote(_ reservation: RemoteReservation) -> String? {
+        guard case .refused(let refusal) = reservation else { return nil }
+        return switch refusal {
+        case .accessOff: String(localized: "menu.batuta.accessOff", bundle: .localized)
+        case .untrustedServer: String(localized: "menu.batuta.untrustedServer", bundle: .localized)
+        case .noAnswer: String(localized: "menu.batuta.noAnswer", bundle: .localized)
+        case .refused, .cannotType, .focusMoved: String(localized: "menu.batuta.refused", bundle: .localized)
+        }
     }
 
     // MARK: Rewrite
@@ -334,6 +530,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var session: RewriteSession?
     private var picker: PickerController?
     private var selection: LiveSessionSelection?
+    /// Quill's one connection to Batuta (shared-control S6 R2, R6): kept open from launch so
+    /// Batuta keeps Quill's shortcut on the Mac wherever the keyboard is, and followed across
+    /// Batuta's restarts. Only a Batuta signed by Quill's own team is answered
+    /// (`BatutaKeyboard.trust`); without one, Quill works as it always did.
+    private lazy var batuta = BatutaKeyboard.live(
+        socketPath: BatutaKeyboard.socketPath(dataDirectory: BatutaKeyboard.dataDirectory),
+        trust: BatutaKeyboard.trust(ownTeam: LocalChannel.ownTeam, trustSameUser: DebugHooks.trustsSameUserForBatuta))
+    /// Where a text comes from and where a result lands while Batuta lends the keyboard to
+    /// another computer. One for the app's life, so a refusal is said once, not on every rewrite.
+    private lazy var remoteLanding = RemoteLanding(keyboard: batuta)
     private var selectionSwitches: KillSwitches?
     private var engine: (GenerationEngine, OutputGuards)?
     private let toast = ToastController()
@@ -420,7 +626,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             engine: engine, guards: guards, selection: selection,
             catalog: LiveModelCatalog(registry: environment.registry, listCache: environment.modelCache),
             examples: StoreExampleSink(profiles: environment.profiles),
-            treatLoopbackAsRemote: DebugHooks.treatsLoopbackAsRemote)
+            treatLoopbackAsRemote: DebugHooks.treatsLoopbackAsRemote,
+            remote: remoteLanding)
     }
 
     private func perform(_ effect: SessionEffect, picker: PickerController?) {
@@ -429,11 +636,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             picker?.show()
         case .close:
             picker?.close()
-        case .toast(let outcome, let profile, let direct):
-            log.info("applied: \(outcome)\(direct ? " directly" : "")")
+        case .toast(let outcome, let profile, let direct, let remote):
+            log.info("applied: \(outcome)\(direct ? " directly" : "")\(remote.map { " (Batuta: \($0))" } ?? "")")
             usage.count("rewrites")
-            toast.show(ToastController.text(for: outcome, profile: profile, direct: direct),
+            toast.show(ToastController.text(for: outcome, profile: profile, direct: direct, remote: remote),
                        near: session?.capture?.bounds)
+        case .selectionNotice(let notice):
+            log.info("shortcut on another computer, nothing done: \(notice)")
+            toast.show(ToastController.selectionNotice(notice), near: nil)
         case .openSettings(let pane):
             switch pane {
             case .providers: openSettings(.providers)
@@ -458,6 +668,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(rewrite)
         if let problem = hotKey.problem { menu.addItem(Self.note(problem)) }
+        if let note = Self.batutaNote(batuta.reservation) { menu.addItem(Self.note(note)) }
+        let dictate = NSMenuItem(
+            title: String(localized: "menu.dictate", bundle: .localized),
+            action: #selector(dictateAndRewrite), keyEquivalent: "")
+        dictate.target = self
+        if let combination = hotKey.combination, hotKey.problem == nil {
+            dictate.title += "  " + String(localized: "menu.dictate.hold \(combination.displayString)", bundle: .localized)
+        }
+        menu.addItem(dictate)
 
         addPermissionItems(to: menu)
         addProfileItems(to: menu)
@@ -743,7 +962,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             credentials: environment.credentials,
             registerShortcut: { [weak self] combination in
                 guard let self else { return nil }
-                hotKey.register(combination) { [weak self] in self?.rewriteSelection() }
+                hotKey.register(combination, action: { [weak self] in self?.shortcutPressed() },
+                                onRelease: { [weak self] in self?.shortcutReleased() })
+                batuta.reserve(hotKey.reservedChords)
                 return hotKey.problem
             },
             afterReset: { PermissionWatcher.restart() },

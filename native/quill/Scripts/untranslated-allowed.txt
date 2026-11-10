@@ -18,3 +18,13 @@ en	focus.roles
 # 2026-10-14 — meetings: the two English role names Spanish teams use as they are.
 en	role.builtin.productOwner
 en	role.builtin.techLead
+#
+# 2026-11-04 — AppCore's bug report form (shared-control J-28): «Cancelar», «Enviar» and
+# «Enviando…» are written the same in Spanish and in Portuguese.
+pt-BR	bugreport.cancel
+pt-BR	bugreport.send
+pt-BR	bugreport.sending
+# 2026-11-10 — the vocabulary editor's examples (EFFICIENCY.md E6): a misheard word and a
+# product name, written the same in both languages.
+en	pane.vocabulary.heard.prompt
+en	pane.vocabulary.written.prompt

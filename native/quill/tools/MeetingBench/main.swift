@@ -1,3 +1,4 @@
+import AVFAudio
 import Foundation
 import ListenKit
 import SpeakerKit
@@ -243,6 +244,28 @@ do {
             print(String(format: "pass at %4.0f s: %@ right; voices %@; took %.1f s",
                          pass.at, percent(all > 0 ? right / all : nil), labels.joined(separator: " "), pass.seconds))
         }
+    case "append-cost":
+        // What keeping the others' audio costs per block, as the tap delivers it (48 kHz
+        // stereo, 10 ms blocks): one minute of blocks through the app's accumulator.
+        let format = ProcessInfo.processInfo.environment["BENCH_16K"] != nil ? AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)! : AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480)!
+        buffer.frameLength = 480
+        let accumulator = AudioAccumulator()
+        let began = ContinuousClock.now
+        for _ in 0..<6_000 { accumulator.append(buffer) }
+        print("6000 blocks (60 s of audio) in \(ContinuousClock.now - began); \(accumulator.seconds) s kept")
+    case "latency":
+        guard arguments.count > 1 else { throw BenchError("latency <case> [--seconds N]") }
+        let seconds = arguments.firstIndex(of: "--seconds").flatMap { arguments.indices.contains($0 + 1) ? Double(arguments[$0 + 1]) : nil } ?? 90
+        try await LatencyBench.run(caseDirectory: cache.appendingPathComponent("cases/\(arguments[1])"), seconds: seconds)
+    case "history":
+        let count = arguments.firstIndex(of: "--meetings").flatMap { arguments.indices.contains($0 + 1) ? Int(arguments[$0 + 1]) : nil } ?? 200
+        try HistoryBench.run(meetings: count)
+    case "live":
+        guard arguments.count > 1 else { throw BenchError("live <case> [--minutes N] [--fixed]") }
+        let minutes = arguments.firstIndex(of: "--minutes").flatMap { arguments.indices.contains($0 + 1) ? Double(arguments[$0 + 1]) : nil } ?? 60
+        try await LiveBench.run(caseDirectory: cache.appendingPathComponent("cases/\(arguments[1])"),
+                                minutes: minutes, fixed: arguments.contains("--fixed"), models: try modelsDirectory())
     case "live-audio":
         // The case's others track with three seconds of silence in front, for T3: the
         // capture starts a moment after the player does, and must not miss the first words.
@@ -313,7 +336,7 @@ do {
             exit(failures.isEmpty ? 0 : 1)
         }
     default:
-        print("usage: meeting-bench prepare | run [--gate] [case…] | split <case> | known <case> [--seed <dir>] | known-real <data dir> | live-audio <case> | score <case> <report> [--gate]")
+        print("usage: meeting-bench prepare | run [--gate] [case…] | split <case> | known <case> [--seed <dir>] | known-real <data dir> | live <case> [--minutes N] [--fixed] | history [--meetings N] | latency <case> [--seconds N] | live-audio <case> | score <case> <report> [--gate]")
         exit(64)
     }
 } catch {

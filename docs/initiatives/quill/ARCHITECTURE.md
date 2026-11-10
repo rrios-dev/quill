@@ -35,7 +35,8 @@ native/
     │   ├── QuillSupport/             `QuillLog` and other leaf utilities every target may import
     │   ├── ModelKit/                 provider contract + adapters (moved here in P0-T1)
     │   ├── RewriteKit/               profiles, prompts, guards, generation engine, evaluation
-    │   └── SelectionKit/             capture and replace text in other apps
+    │   ├── SelectionKit/             capture and replace text in other apps
+    │   └── RemoteTyping/             the text typed on the computer Batuta lends the keyboard to (§3.8)
     ├── apps/Quill/                   the app: wiring + UI; debug probe and hooks (§3.6)
     ├── tools/QuillBench/             `quill-bench` CLI; data/{cases,judge,baselines}/, data/gate-v<n>.json, data/{prices,readiness}.json
     ├── Tests/{ModelKit,RewriteKit,SelectionKit,Quill,QuillBench}Tests/
@@ -50,6 +51,7 @@ Quill (app) ──► RewriteKit ──► ModelKit
      │                            ▲
      ├──► ModelKit (registry, Keychain store)
      ├──► SelectionKit ──► AppCore    (reuses Paster's approach; posts its own events)
+     ├──► RemoteTyping ──► AgentHost, MCPKit   (Batuta's local API; nothing of Batuta's)
      └──► AppCore, GlassUI
 QuillBench ──► RewriteKit, ModelKit
 every Quill target except ModelKit ──► QuillSupport (leaf: depends on nothing)
@@ -423,6 +425,64 @@ the delay, with a snapshot, and with an unchanged `changeCount`; abort on a
 changed selection). Pasteboard tests use a private named pasteboard; no test
 posts a real key or touches the general pasteboard (Ámbar learned that a
 suite that pastes wipes the developer's clipboard).
+
+### 3.8 Remote typing (Batuta)
+
+Batuta (`native/batuta`) lends this Mac's keyboard, mouse and headset to another
+computer. While it does, Quill's ⌘V would reach that computer as a bare keystroke
+(Batuta's event tap forwards what Quill posts), so a result applied then would land
+nowhere useful. `RemoteTyping` (shared-control S6 R2):
+
+- **Port** `RemoteKeyboard` (`status`, `type`) and **decision** `RemoteLanding`: at apply
+  time — when the text is ready, never cached — Batuta is asked where the keyboard is.
+  On a client the text goes there with `type_text`, naming that computer so Batuta types
+  only if it still has the keyboard, and the toast says "Escrito en <computer>". With no
+  Batuta, the keyboard on the Mac, or any refusal, the apply runs as before on the Mac;
+  a refusal rides on the toast once ("Reemplazado — en este Mac: Batuta no respondió a
+  tiempo") and is not repeated until it changes or a text reaches the client. ⌘C always
+  copies.
+- **Adapter** `BatutaKeyboard` over `BatutaLink`: one connection Quill keeps open from
+  launch on `~/Library/Application Support/dev.rrios.batuta/local-api.sock`
+  (`native/batuta/docs/local-api.md`), one JSON line per request, replies in order. It is
+  opened with AgentHost's `AgentChannel.open`: before a byte is written the listening
+  process must run as this user and be signed by Quill's own Team ID (`ServerTrust`, audit
+  token, `LOCAL_PEERTOKEN`), so a process that bound the socket in Batuta's place reads
+  nothing. An ad hoc build has no team and never connects unless the debug-only
+  `QUILL_TRUST_SAME_USER=1` is set (§3.6). Each request is bounded by 1 s, connect
+  included; one that times out closes the connection, so a late reply never answers the
+  next request.
+- One `RemoteLanding` lives as long as the app (`AppDelegate`), so "said once" spans
+  rewrites.
+
+**The shortcut on the other computer's text** (S6 R6, J-19 "igual que en el Mac"):
+
+- **Reserved shortcut.** The connection carries *standing* lines Batuta keeps only while it
+  is open: `reserve_hotkeys` with Quill's registered shortcut (`HotKeyController.reservedChords`;
+  none when it did not register) and, while the picker needs it, `hold_keyboard`. They are
+  written on every new connection, on every change (Settings → General's shortcut
+  included) and every 20 s (Batuta lets a hold lapse at 60 s); each write sends the lines as
+  they are then, so the last change wins. Started at launch, the link follows Batuta's
+  restarts with a delay that doubles from 1 s to 30 s, and connects at once when
+  `NSWorkspace` reports Batuta launched; dialing and writing run on a private queue,
+  reading on a thread of each connection's own, never on the main thread. When Batuta
+  turns the shortcut down, the menu says why under "Rewrite Selection".
+- **The text.** When the shortcut fires, `RemoteLanding.source()` asks `status`; on a
+  client it asks `get_selection` (the client's X11 PRIMARY), and that text is the capture —
+  plain, editable, filed under Batuta's bundle id, so Batuta's row in Settings → Apps gives
+  those texts a profile and direct apply. The Mac's selection is never read instead.
+  Nothing selected, a selection the client cannot read, or a refusal: one toast says why
+  and nothing else happens. With the keyboard on the Mac, no Batuta or a status refusal,
+  the Mac's selection is captured as always.
+- **The picker** opens on the Mac (at the mouse: there is no selection on this Mac to
+  anchor it) with `hold_keyboard true`, so the owner's keys reach it; every way out —
+  apply, ⌘C, Esc, the shortcut again — gives the keys back first.
+- **The result** is typed back with `type_text` naming the computer it came from, after a
+  `status` that still finds the keyboard there: it replaces the selection that is still
+  active on that computer. R2's rule for a Mac text ("where the keyboard is") does not
+  carry over: the Mac's own selection was never the target, so the result never lands on
+  the Mac or on a third computer. If the keyboard moved, or Batuta refuses, the result is
+  copied (Batuta's clipboard sharing carries it to the other computer too) and the toast
+  says why, every time.
 
 ## 4. RewriteKit — profiles, prompts, guards
 

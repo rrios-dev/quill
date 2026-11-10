@@ -20,11 +20,28 @@ struct HotKeyControllerTests {
         -> HotKeyController
     {
         HotKeyController(
-            register: { combination, _ in
+            register: { combination, _, _ in
                 recorder.registrations.append(combination)
                 return answer(recorder.registrations.count)
             },
             unregister: { recorder.removed.append($0) })
+    }
+
+    @Test("whatever combination the user records gets both its press and its release: tap and hold work on it")
+    func customCombinationKeepsTheRelease() {
+        var pressed = 0, released = 0
+        var stored: (action: () -> Void, onRelease: (() -> Void)?)?
+        let hotKey = HotKeyController(register: { _, action, onRelease in
+            stored = (action, onRelease)
+            return .success(7)
+        }, unregister: { _ in })
+        let custom = KeyCombination(keyCode: UInt32(kVK_ANSI_E), modifiers: UInt32(cmdKey | shiftKey))
+        hotKey.register(custom, action: { pressed += 1 }, onRelease: { released += 1 })
+        stored?.action()
+        stored?.onRelease?()
+        #expect(hotKey.state == .registered(custom))
+        #expect(pressed == 1)
+        #expect(released == 1, "without the release a custom shortcut could not tell a tap from a hold")
     }
 
     @Test("an exclusive owner is reported as in use, and no shared registration follows")

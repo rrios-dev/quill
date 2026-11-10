@@ -3,15 +3,17 @@ import ListenKit
 
 /// A word or phrase the transcriber gets wrong, and how it is written (VOICES.md S3–S4).
 ///
-/// Learnt from the user's corrections of a transcript, never typed in a form: each
-/// correction keeps the words that changed. It belongs to whoever said it (J-04): the
-/// user ("me"), or a person of the directory; the same correction for two people offers
-/// to make it global.
+/// Learnt from the user's corrections of a transcript, or written in Settings. It
+/// belongs to whoever said it (J-04): the user ("me"), or a person of the directory; the
+/// same correction for two people offers to make it global. A correction to a voice not
+/// named yet waits on that voice and goes to its person once it has one (EFFICIENCY.md E4).
 public struct VocabularyEntry: Codable, Identifiable, Hashable, Sendable {
     public enum Scope: Codable, Hashable, Sendable {
         case global
         case me
         case person(UUID)
+        /// A voice of one meeting nobody has named yet.
+        case voice(meeting: UUID, label: String)
     }
 
     public var id: UUID
@@ -36,6 +38,16 @@ public struct VocabularyEntry: Codable, Identifiable, Hashable, Sendable {
     /// Two entries teach the same thing whatever their case and accents.
     func same(as heard: String, _ written: String) -> Bool {
         Vocabulary.fold(self.heard) == Vocabulary.fold(heard) && self.written == written
+    }
+}
+
+extension VocabularyEntry.Scope {
+    /// The user or a person of the directory.
+    var isSomeone: Bool {
+        switch self {
+        case .me, .person: true
+        case .global, .voice: false
+        }
     }
 }
 
@@ -117,9 +129,9 @@ public enum Vocabulary {
 
 extension MeetingRecord {
     /// Whose words a voice label holds, for the vocabulary: the user, the person it was
-    /// named as, or nobody yet.
-    public func vocabularyScope(of label: String) -> VocabularyEntry.Scope? {
+    /// named as, or the voice itself until it is named.
+    public func vocabularyScope(of label: String) -> VocabularyEntry.Scope {
         if label == "me" { return .me }
-        return people[label].map { .person($0) }
+        return people[label].map { .person($0) } ?? .voice(meeting: id, label: label)
     }
 }

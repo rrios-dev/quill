@@ -5,6 +5,7 @@ import SynthesisKit
 /// Meetings, people, roles and focuses on disk, under Quill's data folder:
 ///
 ///     meetings/<id>.json   one meeting: transcript, who was who, syntheses
+///     index.json           what lists and searches read instead of every meeting
 ///     people.json          names with their usual role
 ///     roles.json           the role catalogue (defaults until the user edits it)
 ///     focuses.json         the user's own focuses (built-ins live in code)
@@ -15,6 +16,8 @@ import SynthesisKit
 public final class MeetingStore: @unchecked Sendable {
     public let directory: URL
     private let fileManager = FileManager.default
+    /// The index as last read or written by this store (`index.json`).
+    private var index: [UUID: MeetingIndexEntry]?
 
     /// The built-in roles and focuses in the reader's language, keyed by id.
     ///
@@ -78,41 +81,59 @@ public final class MeetingStore: @unchecked Sendable {
     var rolesFile: URL { directory.appendingPathComponent("roles.json") }
     var focusesFile: URL { directory.appendingPathComponent("focuses.json") }
     var vocabularyFile: URL { directory.appendingPathComponent("vocabulary.json") }
+    var indexFile: URL { directory.appendingPathComponent("index.json") }
 
     // MARK: Meetings
 
     public func save(_ meeting: MeetingRecord) throws {
-        try write(meeting, to: meetingsDirectory.appendingPathComponent("\(meeting.id.uuidString).json"))
+        let url = meetingsDirectory.appendingPathComponent("\(meeting.id.uuidString).json")
+        try write(meeting, to: url)
+        var entries = currentIndex()
+        if let stamp = stamp(of: url) {
+            entries[meeting.id] = MeetingIndexEntry(meeting, stamp: stamp)
+            storeIndex(entries)
+        }
     }
 
     public func meeting(_ id: UUID) -> MeetingRecord? {
         read(MeetingRecord.self, from: meetingsDirectory.appendingPathComponent("\(id.uuidString).json"))
     }
 
-    /// Newest first.
+    /// Every meeting, decoded. Newest first. Costly with a long history: lists and
+    /// searches read `summaries()` and `search(_:)`, which use the index.
     public func meetings() -> [MeetingRecord] {
-        let files = (try? fileManager.contentsOfDirectory(at: meetingsDirectory, includingPropertiesForKeys: nil)) ?? []
-        return files.filter { $0.pathExtension == "json" }
-            .compactMap { read(MeetingRecord.self, from: $0) }
-            .sorted { $0.startedAt > $1.startedAt }
+        summaries().compactMap { meeting($0.id) }
     }
 
+    /// The most recent meeting, decoding only that one.
+    public func latestMeeting() -> MeetingRecord? {
+        summaries().first.flatMap { meeting($0.id) }
+    }
+
+    /// Newest first, from the index: no transcript is decoded unless it changed since it
+    /// was indexed.
     public func summaries() -> [MeetingSummary] {
-        meetings().map {
-            MeetingSummary(id: $0.id, title: $0.title, sourceApp: $0.sourceApp, startedAt: $0.startedAt,
-                           duration: $0.duration, peopleCount: $0.labels.count, synthesisCount: $0.syntheses.count)
-        }
+        currentIndex().values.map(\.summary).sorted { $0.startedAt > $1.startedAt }
     }
 
     public func delete(_ id: UUID) throws {
         let url = meetingsDirectory.appendingPathComponent("\(id.uuidString).json")
         if fileManager.fileExists(atPath: url.path) { try fileManager.removeItem(at: url) }
+        var entries = currentIndex()
+        if entries.removeValue(forKey: id) != nil { storeIndex(entries) }
+        // Corrections still waiting on a voice of this meeting go with it.
+        let vocabulary = self.vocabulary()
+        let kept = vocabulary.filter { entry in
+            if case .voice(let meeting, _) = entry.scope { return meeting != id }
+            return true
+        }
+        if kept.count != vocabulary.count { try write(kept, to: vocabularyFile) }
     }
 
     /// Deletes every meeting and the people learnt from them. Roles and focuses stay:
     /// they are the user's settings, not meeting content.
     public func deleteHistory() throws {
-        for meeting in meetings() { try delete(meeting.id) }
+        for meeting in summaries() { try delete(meeting.id) }
         if fileManager.fileExists(atPath: peopleFile.path) { try fileManager.removeItem(at: peopleFile) }
     }
 
@@ -120,23 +141,69 @@ public final class MeetingStore: @unchecked Sendable {
     @discardableResult
     public func purge(olderThan days: Int, now: Date = Date()) throws -> Int {
         let limit = now.addingTimeInterval(-Double(days) * 86_400)
-        let old = meetings().filter { $0.startedAt < limit }
+        let old = summaries().filter { $0.startedAt < limit }
         for meeting in old { try delete(meeting.id) }
         return old.count
     }
 
     /// Meetings whose title, transcript, names or syntheses contain every word of
-    /// `query`, ignoring case and accents. Newest first.
-    public func search(_ query: String) -> [MeetingRecord] {
+    /// `query`, ignoring case and accents. Newest first; read from the index.
+    public func search(_ query: String) -> [MeetingSummary] {
         let words = query.split(whereSeparator: \.isWhitespace).map { Self.fold(String($0)) }
-        guard !words.isEmpty else { return meetings() }
-        return meetings().filter { meeting in
-            let text = Self.fold(meeting.searchableText)
-            return words.allSatisfy { text.contains($0) }
-        }
+        let entries = currentIndex().values.sorted { $0.summary.startedAt > $1.summary.startedAt }
+        guard !words.isEmpty else { return entries.map(\.summary) }
+        return entries.filter { entry in words.allSatisfy { entry.searchText.contains($0) } }.map(\.summary)
     }
 
-    static func fold(_ text: String) -> String {
+    // MARK: Index
+
+    /// The index, checked against the meetings on disk: a meeting written or deleted by
+    /// another process (the agent server, an older version) is indexed again, by its
+    /// file's size and date, and only that one is decoded.
+    private func currentIndex() -> [UUID: MeetingIndexEntry] {
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey]
+        let files = ((try? fileManager.contentsOfDirectory(at: meetingsDirectory, includingPropertiesForKeys: keys)) ?? [])
+            .filter { $0.pathExtension == "json" }
+        var known = index ?? read(MeetingIndex.self, from: indexFile).map { file in
+            file.version == MeetingIndex.version
+                ? Dictionary(file.entries.map { ($0.summary.id, $0) }, uniquingKeysWith: { first, _ in first }) : [:]
+        } ?? [:]
+        var changed = false
+        var present: Set<UUID> = []
+        for url in files {
+            guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent), let stamp = stamp(of: url) else { continue }
+            present.insert(id)
+            if known[id]?.stamp == stamp { continue }
+            changed = true
+            if let record = read(MeetingRecord.self, from: url) {
+                known[id] = MeetingIndexEntry(record, stamp: stamp)
+            } else {
+                known[id] = nil
+            }
+        }
+        for id in known.keys where !present.contains(id) {
+            known[id] = nil
+            changed = true
+        }
+        if changed || index == nil {
+            if changed { storeIndex(known) } else { index = known }
+        }
+        return known
+    }
+
+    private func storeIndex(_ entries: [UUID: MeetingIndexEntry]) {
+        index = entries
+        // An index that cannot be written is rebuilt on the next read; nothing is lost.
+        try? write(MeetingIndex(entries: Array(entries.values)), to: indexFile)
+    }
+
+    private func stamp(of url: URL) -> MeetingIndexEntry.Stamp? {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
+              let size = values.fileSize, let date = values.contentModificationDate else { return nil }
+        return MeetingIndexEntry.Stamp(size: size, modified: date.timeIntervalSince1970)
+    }
+
+    public static func fold(_ text: String) -> String {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 
@@ -146,30 +213,77 @@ public final class MeetingStore: @unchecked Sendable {
         read([Person].self, from: peopleFile) ?? []
     }
 
-    /// The person with this name, compared ignoring case and accents.
-    public func person(named name: String) -> Person? {
+    /// The people with this name, compared ignoring case and accents: more than one when
+    /// two people share a name (J-02: a person is their id, never their name).
+    public func people(named name: String) -> [Person] {
         let key = Self.fold(name.trimmingCharacters(in: .whitespaces))
-        return people().first { Self.fold($0.name) == key }
+        return people().filter { Self.fold($0.name) == key }
     }
 
-    /// Remembers that `name` took part in a meeting, with `roleID` when given (a nil role
-    /// keeps the one already known). Returns the person.
+    /// The only person with this name, if exactly one has it.
+    public func person(named name: String) -> Person? {
+        let matches = people(named: name)
+        return matches.count == 1 ? matches.first : nil
+    }
+
+    /// Who a name typed for a voice is: someone the directory knows, a new person, or one
+    /// of several the user must choose between.
+    public enum PersonMatch: Equatable, Sendable {
+        case new
+        case person(UUID)
+        case ambiguous([UUID])
+    }
+
+    /// Resolves a typed name with what the voice sounds like (EFFICIENCY.md E4).
+    ///
+    /// Nobody by that name: a new person. One person, and the voice does not clearly
+    /// belong to someone else: them — the usual case, Fran again. When the voice is
+    /// measured and the person's samples say it is not them (below
+    /// `VoiceRecognition.threshold`), or several people share the name and the voice does
+    /// not single one out, the user chooses: two Frans are two people.
+    public func match(name: String, voice: Voiceprint?) -> PersonMatch {
+        let matches = people(named: name)
+        guard !matches.isEmpty else { return .new }
+        if let voice {
+            let heard = matches.filter { !($0.voices ?? []).isEmpty }
+            let close = heard.map { ($0.id, VoiceRecognition.similarity(voice, to: $0)) }
+                .filter { $0.1 >= VoiceRecognition.threshold }
+                .sorted { $0.1 > $1.1 }
+            if let best = close.first { return .person(best.0) }
+            let unheard = matches.filter { ($0.voices ?? []).isEmpty }
+            if unheard.count == 1, heard.isEmpty { return .person(unheard[0].id) }
+            return .ambiguous(matches.map(\.id))
+        }
+        return matches.count == 1 ? .person(matches[0].id) : .ambiguous(matches.map(\.id))
+    }
+
+    /// Remembers that a person took part in a meeting: `id` when the voice is tied to
+    /// someone already known, else a new person called `name`. A nil role keeps the one
+    /// already known. Returns the person.
     @discardableResult
-    public func remember(name: String, roleID: String?, at date: Date = Date()) throws -> Person {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
+    public func remember(_ id: UUID?, name: String, roleID: String?, at date: Date = Date()) throws -> Person {
         var all = people()
-        let key = Self.fold(trimmed)
-        if let index = all.firstIndex(where: { Self.fold($0.name) == key }) {
+        if let id, let index = all.firstIndex(where: { $0.id == id }) {
             all[index].meetings += 1
             all[index].lastSeen = date
             if let roleID { all[index].roleID = roleID }
             try write(all, to: peopleFile)
             return all[index]
         }
-        let person = Person(name: trimmed, roleID: roleID, meetings: 1, lastSeen: date)
+        let person = Person(name: name.trimmingCharacters(in: .whitespaces), roleID: roleID, meetings: 1, lastSeen: date)
         all.append(person)
         try write(all, to: peopleFile)
         return person
+    }
+
+    /// Remembers `name` the way a typed name with no voice resolves (`match`): the one
+    /// person by that name, else a new one.
+    @discardableResult
+    public func remember(name: String, roleID: String?, at date: Date = Date()) throws -> Person {
+        if case .person(let id) = match(name: name, voice: nil) {
+            return try remember(id, name: name, roleID: roleID, at: date)
+        }
+        return try remember(nil, name: name, roleID: roleID, at: date)
     }
 
     /// Changes the role of someone already remembered, without counting another meeting:
@@ -214,7 +328,13 @@ public final class MeetingStore: @unchecked Sendable {
     public func learnVoicesFromHistory() throws -> Int {
         var all = people()
         var added = 0
-        for meeting in meetings() {
+        // Only meetings with a named person who has no sample from them yet are read.
+        let pending = currentIndex().values.filter { entry in
+            entry.people.contains { personID in
+                all.first { $0.id == personID }.map { !($0.voices ?? []).contains { $0.meetingID == entry.summary.id } } ?? false
+            }
+        }
+        for meeting in pending.compactMap({ meeting($0.summary.id) }) {
             let voices = VoiceRecognition.voices(of: meeting.transcript)
             for (label, personID) in meeting.people {
                 guard let voice = voices[label], let index = all.firstIndex(where: { $0.id == personID }),
@@ -286,8 +406,69 @@ public final class MeetingStore: @unchecked Sendable {
             all.append(entry)
         }
         try write(all, to: vocabularyFile)
-        let others = all.filter { $0.id != entry.id && $0.scope != .global && $0.same(as: heard, written) }.map(\.scope)
-        return Learnt(entry: entry, alsoFor: entry.scope == .global ? [] : others)
+        // Only people count towards "everybody": a voice not named yet is nobody so far.
+        let others = all.filter { $0.id != entry.id && $0.scope.isSomeone && $0.same(as: heard, written) }.map(\.scope)
+        return Learnt(entry: entry, alsoFor: entry.scope.isSomeone ? others : [])
+    }
+
+    /// Adds an entry written by hand (Settings), or changes one: the same correction for
+    /// the same owner is one entry. Returns it.
+    /// Saved meetings are written with it at once, so a word added in Settings also
+    /// fixes the meetings already kept.
+    @discardableResult
+    public func setVocabulary(_ entry: VocabularyEntry) throws -> VocabularyEntry {
+        var all = vocabulary()
+        let previous = all.first { $0.id == entry.id }
+        let heard = entry.heard.trimmingCharacters(in: .whitespaces), written = entry.written.trimmingCharacters(in: .whitespaces)
+        guard !heard.isEmpty, !written.isEmpty else { return entry }
+        var kept = entry
+        kept.heard = heard
+        kept.written = written
+        all.removeAll { $0.id == entry.id }
+        if let index = all.firstIndex(where: { $0.scope == kept.scope && $0.same(as: heard, written) }) {
+            all[index].uses += 1
+            kept = all[index]
+        } else {
+            all.append(kept)
+        }
+        try write(all, to: vocabularyFile)
+        try rewriteMeetings(containing: heard)
+        if let previous { try rewriteMeetings(containing: previous.written) }
+        return kept
+    }
+
+    /// Writes again, with the vocabulary as it is now, the meetings whose text contains
+    /// `text`: the only ones an entry with those words can change. Returns how many changed.
+    @discardableResult
+    func rewriteMeetings(containing text: String) throws -> Int {
+        var rewritten = 0
+        for summary in search(text) {
+            guard let meeting = meeting(summary.id) else { continue }
+            let written = applyingVocabulary(to: meeting)
+            if written != meeting {
+                try save(written)
+                rewritten += 1
+            }
+        }
+        return rewritten
+    }
+
+    /// A voice was named: what was corrected while it had no name becomes its person's.
+    public func adoptVocabulary(of label: String, in meeting: UUID, as person: UUID) throws {
+        let pending = VocabularyEntry.Scope.voice(meeting: meeting, label: label)
+        var all = vocabulary()
+        guard all.contains(where: { $0.scope == pending }) else { return }
+        for entry in all where entry.scope == pending {
+            if let index = all.firstIndex(where: { $0.scope == .person(person) && $0.same(as: entry.heard, entry.written) }) {
+                all[index].uses += entry.uses
+            } else {
+                var moved = entry
+                moved.scope = .person(person)
+                all.append(moved)
+            }
+        }
+        all.removeAll { $0.scope == pending }
+        try write(all, to: vocabularyFile)
     }
 
     /// Makes a correction kept for several people one for everybody.
@@ -302,8 +483,15 @@ public final class MeetingStore: @unchecked Sendable {
         try write(all, to: vocabularyFile)
     }
 
-    public func forgetVocabulary(_ id: UUID) throws {
-        try write(vocabulary().filter { $0.id != id }, to: vocabularyFile)
+    /// Forgets an entry and gives back what the transcriber wrote wherever it had changed
+    /// it, except in sentences the user rewrote by hand. Returns the meetings rewritten.
+    @discardableResult
+    public func forgetVocabulary(_ id: UUID) throws -> Int {
+        let all = vocabulary()
+        guard let entry = all.first(where: { $0.id == id }) else { return 0 }
+        try write(all.filter { $0.id != id }, to: vocabularyFile)
+        // Only meetings that contain the corrected words can hold a sentence it changed.
+        return try rewriteMeetings(containing: entry.written)
     }
 
     /// The entries that apply to words said by `scope`: everybody's and their own.
@@ -311,22 +499,26 @@ public final class MeetingStore: @unchecked Sendable {
         vocabulary().filter { $0.scope == .global || (scope != nil && $0.scope == scope) }
     }
 
+    /// Corrections still waiting on an unnamed voice, from every meeting.
+    public func pendingVocabulary() -> [VocabularyEntry] {
+        vocabulary().filter { if case .voice = $0.scope { return true } else { return false } }
+    }
+
     /// `meeting` with the vocabulary written into every sentence, each by the entries of
-    /// whoever said it. Changed sentences lose their word timings, which no longer match.
+    /// whoever said it, always from what the transcriber wrote (`heard`): an entry
+    /// forgotten since gives its words back. Sentences the user rewrote stay as written.
     public func applyingVocabulary(to meeting: MeetingRecord) -> MeetingRecord {
         let all = vocabulary()
-        guard !all.isEmpty else { return meeting }
         var result = meeting
         for index in result.transcript.segments.indices {
             let segment = result.transcript.segments[index]
-            let label = segment.speaker ?? segment.channel.rawValue
-            let scope = meeting.vocabularyScope(of: label)
-            let entries = all.filter { $0.scope == .global || (scope != nil && $0.scope == scope) }
-            let text = Vocabulary.apply(entries, to: segment.text)
-            if text != segment.text {
-                result.transcript.segments[index].text = text
-                result.transcript.segments[index].words = []
-            }
+            guard segment.edited != true else { continue }
+            let scope = meeting.vocabularyScope(of: segment.speaker ?? segment.channel.rawValue)
+            let base = segment.heard ?? segment.text
+            let entries = all.filter { $0.scope == .global || $0.scope == scope }
+            let text = entries.isEmpty ? base : Vocabulary.apply(entries, to: base)
+            result.transcript.segments[index].text = text
+            result.transcript.segments[index].heard = text == base ? nil : base
         }
         return result
     }

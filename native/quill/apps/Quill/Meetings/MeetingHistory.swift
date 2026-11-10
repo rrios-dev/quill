@@ -1,3 +1,4 @@
+import AppCore
 import AppKit
 import GlassUI
 import ListenKit
@@ -45,8 +46,10 @@ final class MeetingHistoryModel {
     enum Tab: Hashable { case syntheses, transcript }
 
     var query = "" { didSet { reload() } }
-    private(set) var meetings: [MeetingRecord] = []
-    var selectedID: UUID?
+    /// The list, from the store's index; only the selected meeting is read whole.
+    private(set) var meetings: [MeetingSummary] = []
+    var selectedID: UUID? { didSet { if selectedID != oldValue { loadSelected() } } }
+    private(set) var selected: MeetingRecord?
     var selectedSynthesisID: UUID?
     var tab: Tab = .syntheses
     var confirmingDelete = false
@@ -58,10 +61,16 @@ final class MeetingHistoryModel {
 
     func reload() {
         meetings = coordinator.store.search(query)
-        if selectedID == nil || !meetings.contains(where: { $0.id == selectedID }) { selectedID = meetings.first?.id }
+        if selectedID == nil || !meetings.contains(where: { $0.id == selectedID }) {
+            selectedID = meetings.first?.id
+        } else {
+            loadSelected()
+        }
     }
 
-    var selected: MeetingRecord? { meetings.first { $0.id == selectedID } }
+    private func loadSelected() {
+        selected = selectedID.flatMap { coordinator.store.meeting($0) }
+    }
 
     var selectedSynthesis: SynthesisRecord? {
         guard let selected else { return nil }
@@ -69,11 +78,11 @@ final class MeetingHistoryModel {
     }
 
     /// Meetings grouped by the week they started in, newest first.
-    var weeks: [(title: String, meetings: [MeetingRecord])] {
+    var weeks: [(title: String, meetings: [MeetingSummary])] {
         let calendar = Calendar.current
         let thisWeek = calendar.dateInterval(of: .weekOfYear, for: Date())
         let lastWeek = thisWeek.flatMap { calendar.dateInterval(of: .weekOfYear, for: $0.start.addingTimeInterval(-1)) }
-        var groups: [(String, [MeetingRecord])] = []
+        var groups: [(String, [MeetingSummary])] = []
         for meeting in meetings {
             let title: String
             if thisWeek?.contains(meeting.startedAt) == true {

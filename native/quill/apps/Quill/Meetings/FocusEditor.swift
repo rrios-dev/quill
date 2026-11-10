@@ -1,3 +1,4 @@
+import AppCore
 import AppKit
 import GlassUI
 import MeetingKit

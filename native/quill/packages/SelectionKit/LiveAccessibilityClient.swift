@@ -145,6 +145,15 @@ public struct LiveAccessibilityClient: AccessibilityClient {
         }
     }
 
+    public func frame(of element: AccessibilityElement) -> Result<CGRect, AccessibilityError> {
+        copy("AXFrame", of: element).flatMap { value in
+            guard CFGetTypeID(value) == AXValueGetTypeID() else { return .failure(.unexpectedType) }
+            var rect = CGRect.zero
+            guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cgRect, &rect) else { return .failure(.unexpectedType) }
+            return .success(rect)
+        }
+    }
+
     public func bounds(for range: CFRange, of element: AccessibilityElement) -> Result<CGRect, AccessibilityError> {
         parameterized("AXBoundsForRange", range: range, of: element).flatMap { value in
             guard CFGetTypeID(value) == AXValueGetTypeID() else { return .failure(.unexpectedType) }

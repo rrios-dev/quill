@@ -37,13 +37,19 @@ public final class ChannelTranscriber: @unchecked Sendable {
 
     /// Prepares the model. Throws if the locale has no installed model; the caller
     /// reserves the locale first (see `ListenSession`).
-    public init(channel: Channel, locale: Locale) async throws {
+    ///
+    /// - Parameter reporting: `.volatileResults` also reports the words of a sentence
+    ///   still being said, as drafts (`start(_:onDraft:)`); `.fastResults` trades some of
+    ///   their accuracy for speed. Finished sentences are what the transcript keeps either
+    ///   way (EFFICIENCY.md E5).
+    public init(channel: Channel, locale: Locale,
+                reporting: Set<SpeechTranscriber.ReportingOption> = []) async throws {
         self.channel = channel
         self.locale = locale
         transcriber = SpeechTranscriber(
             locale: locale,
             transcriptionOptions: [],
-            reportingOptions: [],
+            reportingOptions: reporting,
             attributeOptions: [.audioTimeRange]
         )
         analyzer = SpeechAnalyzer(modules: [transcriber])
@@ -54,18 +60,25 @@ public final class ChannelTranscriber: @unchecked Sendable {
         try await analyzer.prepareToAnalyze(in: format)
     }
 
-    /// Starts the analyzer and calls `onSegment` with every finished segment.
-    public func start(_ onSegment: @escaping @Sendable (TranscriptSegment) -> Void) async throws {
+    /// Starts the analyzer and calls `onSegment` with every finished segment, and
+    /// `onDraft` with the words of the one being said, when the transcriber reports them.
+    public func start(_ onSegment: @escaping @Sendable (TranscriptSegment) -> Void,
+                      onDraft: (@Sendable (TranscriptDraft) -> Void)? = nil) async throws {
         try await analyzer.start(inputSequence: feedStream)
         let channel = self.channel
         let transcriber = self.transcriber
         resultsTask = Task {
             do {
-                for try await result in transcriber.results where result.isFinal {
+                for try await result in transcriber.results {
                     let text = String(result.text.characters)
                         .trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !text.isEmpty else { continue }
                     let range = result.range
+                    guard result.isFinal else {
+                        onDraft?(TranscriptDraft(channel: channel, start: range.start.seconds,
+                                                 end: range.end.seconds, text: text))
+                        continue
+                    }
+                    guard !text.isEmpty else { continue }
                     onSegment(TranscriptSegment(
                         channel: channel,
                         start: range.start.seconds,
@@ -194,6 +207,22 @@ public final class ChannelTranscriber: @unchecked Sendable {
         }
         guard error == nil, output.frameLength > 0 else { return nil }
         return output
+    }
+}
+
+/// The words of a sentence still being said: replaced by the next draft of its channel,
+/// and gone when the sentence is finished. Never kept in the transcript.
+public struct TranscriptDraft: Sendable, Equatable {
+    public let channel: Channel
+    public let start: Double
+    public let end: Double
+    public let text: String
+
+    public init(channel: Channel, start: Double, end: Double, text: String) {
+        self.channel = channel
+        self.start = start
+        self.end = end
+        self.text = text
     }
 }
 

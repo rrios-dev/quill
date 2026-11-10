@@ -91,4 +91,25 @@ struct MeetingAppsTests {
         #expect(app.matches("com.example.Call.helper"))
         #expect(MeetingApp.known.filter { !$0.isListed }.isEmpty)
     }
+
+    @Test("Batuta is a meeting app: it holds the Mac's microphone only while a call on another computer asks for it")
+    func batutaCall() {
+        let batuta = MeetingApp.known.first { $0.id == "batuta" }
+        #expect(batuta?.name == "Batuta")
+        #expect(batuta?.isBrowser == false)
+        // A call on the Linux: Batuta plays its sound in the headset and sends it the Mac's microphone.
+        let call = MeetingApp.recording(
+            among: MeetingApp.known,
+            processes: [process("dev.rrios.batuta", input: true, output: true)],
+            ownBundleID: "dev.rrios.quill")
+        #expect(call.map(\.id) == ["batuta"])
+        // A video on the Linux: Batuta plays, nothing asks for the microphone — no meeting.
+        let video = MeetingApp.recording(
+            among: MeetingApp.known,
+            processes: [process("dev.rrios.batuta", output: true)],
+            ownBundleID: "dev.rrios.quill")
+        #expect(video.isEmpty)
+        // Its MCP executable is not the app.
+        #expect(batuta?.matches("dev.rrios.batutatool") == false)
+    }
 }

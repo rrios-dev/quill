@@ -87,6 +87,15 @@ public protocol AccessibilityClient: Sendable {
 
     /// `kAXBoundsForRangeParameterizedAttribute`, in the API's top-left global coordinates.
     func bounds(for range: CFRange, of element: AccessibilityElement) -> Result<CGRect, AccessibilityError>
+
+    /// The element's own frame (`AXFrame`), in the API's top-left global coordinates: where
+    /// a text field is when its app does not report its cursor (web views, Electron).
+    func frame(of element: AccessibilityElement) -> Result<CGRect, AccessibilityError>
+}
+
+extension AccessibilityClient {
+    /// Not every client reports frames (the test fakes): placement then falls back.
+    public func frame(of element: AccessibilityElement) -> Result<CGRect, AccessibilityError> { .failure(.unexpectedType) }
 }
 
 /// The attributes of one run of an accessibility attributed string, reduced to what

@@ -37,4 +37,21 @@ struct MeetingPreferencesTests {
         preferences.adoptNewApps()
         #expect(!preferences.offerApps.contains("discord"))
     }
+
+    @Test("preferences saved by 1.3.0, before Batuta was listed, offer Batuta's calls too")
+    func batutaAdoptedFromOneThreeZero() {
+        var preferences = MeetingPreferences()
+        preferences.knownApps = Set(MeetingApp.known.map(\.id)).subtracting(["batuta"])
+        preferences.offerApps = preferences.knownApps!.subtracting(["zoom"])
+        preferences.adoptNewApps()
+        #expect(preferences.offerApps.contains("batuta"))
+        #expect(!preferences.offerApps.contains("zoom"))
+    }
+
+    @Test("Settings lists Batuta among the meeting apps, beside Teams and Zoom, not under the browsers")
+    func batutaListed() {
+        let listed = MeetingApp.known.filter { !$0.isBrowser }.map(\.id)
+        #expect(listed.contains("batuta") && listed.contains("teams") && listed.contains("zoom"))
+        #expect(MeetingPreferences().offerApps.contains("batuta"))
+    }
 }

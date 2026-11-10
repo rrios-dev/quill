@@ -1,5 +1,6 @@
 import AppKit
 import GlassUI
+import RemoteTyping
 import SelectionKit
 import SwiftUI
 
@@ -47,8 +48,49 @@ final class ToastController {
     }
 
     /// The line for an outcome (PRODUCT §4.1 Applied).
-    static func text(for outcome: AppliedOutcome, profile: String, direct: Bool) -> String {
+    /// With `remote`, the line says after the outcome why the text stayed on this Mac while
+    /// Batuta has the keyboard elsewhere (shared-control S6 R2).
+    static func text(for outcome: AppliedOutcome, profile: String, direct: Bool, remote: RemoteRefusal? = nil) -> String {
+        let line = text(for: outcome, profile: profile, direct: direct)
+        guard let remote else { return line }
+        return line + " — " + notice(remote)
+    }
+
+    /// Why the text stayed on this Mac, in Quill's words: Batuta's own sentence is English
+    /// and written for agents.
+    static func notice(_ refusal: RemoteRefusal) -> String {
+        switch refusal {
+        case .accessOff: PickerCopy.string("toast.remote.accessOff")
+        case .refused: PickerCopy.string("toast.remote.refused")
+        case .untrustedServer: PickerCopy.string("toast.remote.untrustedServer")
+        case .noAnswer: PickerCopy.string("toast.remote.noAnswer")
+        case .cannotType(let computer): PickerCopy.string("toast.remote.cannotType \(computer)")
+        case .focusMoved(let computer): PickerCopy.string("toast.remote.focusMoved \(computer)")
+        }
+    }
+
+    /// Why the shortcut did nothing while Batuta had the keyboard on another computer: that
+    /// computer's selection could not be used (shared-control S6 R6). Said on its own.
+    static func selectionNotice(_ notice: RemoteLanding.SelectionNotice) -> String {
+        switch notice {
+        case .nothingSelected(let computer): PickerCopy.string("toast.selection.nothingSelected \(computer)")
+        case .unreadable(let computer): PickerCopy.string("toast.selection.unreadable \(computer)")
+        case .refused(let refusal):
+            switch refusal {
+            case .accessOff: PickerCopy.string("toast.selection.accessOff")
+            case .refused: PickerCopy.string("toast.selection.refused")
+            case .untrustedServer: PickerCopy.string("toast.selection.untrustedServer")
+            case .noAnswer: PickerCopy.string("toast.selection.noAnswer")
+            case .cannotType(let computer): PickerCopy.string("toast.selection.unreadable \(computer)")
+            case .focusMoved(let computer): PickerCopy.string("toast.selection.focusMoved \(computer)")
+            }
+        }
+    }
+
+    private static func text(for outcome: AppliedOutcome, profile: String, direct: Bool) -> String {
         switch outcome {
+        case .typed(let computer):
+            return PickerCopy.string("toast.typedOn \(computer)")
         case .copied:
             return PickerCopy.string("toast.copied")
         case .replace(let replace):

@@ -158,7 +158,10 @@ Mockups: the "Quill Reuniones" design canvas (owner review, 2026-10-07).
 1. **Offer.** Quill notices a meeting app has the microphone open and offers
    "¿Transcribir esta reunión?": one click or ⌃⌥T. A visible indicator while it listens.
    Which apps count is `MeetingApp.known` (1.1.1: Teams, Zoom, Webex, Slack, FaceTime,
-   GoTo, Gather, Discord, WhatsApp, Telegram, Signal and twelve browsers). An app outside
+   GoTo, Gather, Discord, WhatsApp, Telegram, Signal and twelve browsers; Batuta since
+   shared-control S6 R2: it opens the Mac's microphone only while a call on the computer it
+   lends the headset to asks for it, so its recording is that call, and its output is the
+   other people). An app outside
    the list never triggers the offer on its own, because the microphone is also opened by
    dictation and recording apps; "Transcribir una reunión" in the menu offers it instead,
    choosing an app that also plays audio (a call) before one that only records. Preferences

@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import ModelKit
+import RemoteTyping
 import RewriteKit
 import SelectionKit
 import Testing
@@ -32,7 +33,7 @@ final class SessionHarness {
     var bigLocalModel: ModelSelection { ModelSelection(provider: bigLocal.descriptor.id, model: "big") }
 
     init(capture: Capture? = nil, globalModel: ModelSelection? = nil, notified: Bool = true,
-         treatLoopbackAsRemote: Bool = false) throws {
+         treatLoopbackAsRemote: Bool = false, remote: RemoteLanding? = nil) throws {
         folder = FileManager.default.temporaryDirectory
             .appendingPathComponent("RewriteSessionTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -48,7 +49,8 @@ final class SessionHarness {
         let holder = try ProviderRegistryHolder(shipped: [local, bigLocal, hosted], customServers: [], makeCustom: { _ in fatalError() })
         session = RewriteSession(settings: settings, profiles: profiles, registry: holder,
                                  engine: try GenerationEngine(), guards: try OutputGuards(), selection: selection,
-                                 catalog: catalog, examples: sink, treatLoopbackAsRemote: treatLoopbackAsRemote)
+                                 catalog: catalog, examples: sink, treatLoopbackAsRemote: treatLoopbackAsRemote,
+                                 remote: remote)
         let global = globalModel ?? localModel
         let testID = test.id
         let hostedID = hosted.descriptor.id

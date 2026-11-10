@@ -22,7 +22,8 @@ press **⌃⌥R**, and Quill rewrites it for whoever will read it.
 ## Meetings
 
 It works with Microsoft Teams, Zoom, Webex, Slack, FaceTime, GoTo Meeting, Gather,
-Discord, WhatsApp, Telegram and Signal, and with any meeting in a browser (Google Meet,
+Discord, WhatsApp, Telegram, Signal and Batuta (a call on the computer Batuta lends your
+headset to), and with any meeting in a browser (Google Meet,
 Teams or Zoom on the web…) in Chrome, Safari, Edge, Arc, Dia, Brave, Firefox, Zen, Opera,
 Vivaldi, Chromium or Comet. For any other app, *Transcribe a meeting* in the menu offers
 whichever app has the microphone open. So far it has been tried in real calls only in
@@ -80,10 +81,23 @@ rewriting for each kind of reader, which you can tune, test and give examples to
 Make your own, pin a model to a profile, or give an app its default ("in Teams, use Work";
 optionally applied without the picker).
 
+**Dictate and rewrite.** Hold **⌃⌥R** instead of tapping it, and speak: a small glass
+capsule beside your cursor shows the words as you say them. You can let go of the keys;
+it keeps listening. Press ⌃⌥R again and what you said goes through the same picker and
+lands at the cursor — cleaned up, formal or short, as the profile says. If you record
+another shortcut in Settings → General, the same works on it. It runs on macOS's
+on-device speech model; if Ámbar is installed, the words you taught Ámbar's dictation
+are written right here too.
+
+With Batuta sharing your Mac's keyboard with a Linux
+computer, ⌃⌥R works there too: Quill reads the text you selected on that computer, shows
+the picker on your Mac, and types the result back over the selection. Batuta's row in
+Settings → Apps sets the profile for those texts.
+
 ## Agents (Claude Code, Codex)
 
 Quill can be used from Claude Code, Codex or any MCP client: "what was decided in
-yesterday's meeting?", "turn the action items into tickets", "rewrite this with my Work
+yesterday's meeting?", "transcribe this call", "turn the action items into tickets", "rewrite this with my Work
 profile". Turn it on in **Settings › Agents** and press **Connect**, or register it
 yourself:
 
@@ -93,8 +107,11 @@ claude mcp add --scope user quill -- /Applications/Quill.app/Contents/MacOS/quil
 
 The agent can list and search meetings, read their syntheses and transcripts (with each
 person's name and role), read your focuses and profiles, and ask Quill for a new synthesis
-or a rewrite — those two use your model and the agent asks you first. It cannot record,
-delete or read your keys. Off by default; Settings shows which agent used what, and when.
+or a rewrite — those two use your model and the agent asks you first. It can also see
+which apps are in a call, start transcribing the one you choose, follow it, and stop it or
+wait for the call to end, then read the transcript and synthesise it ("transcribe this
+Teams call and send me the minutes when it ends"). Quill's live panel shows whenever it
+listens, whoever started it. It cannot delete or read your keys. Off by default; Settings shows which agent used what, and when.
 What the agent reads goes to that agent's model.
 
 ## Models

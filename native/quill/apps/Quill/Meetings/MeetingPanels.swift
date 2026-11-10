@@ -1,3 +1,4 @@
+import AppCore
 import AppKit
 import GlassUI
 import ListenKit
@@ -262,7 +263,7 @@ struct LiveView: View {
                             .lineLimit(2)
                             .frame(width: 84, alignment: .leading)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(line.segment.text).font(.system(size: 13))
+                                Text(line.text).font(.system(size: 13))
                                 if let translation = line.translation {
                                     Text(translation)
                                         .font(.system(size: 13))
@@ -275,6 +276,22 @@ struct LiveView: View {
                         }
                         .id(line.id)
                     }
+                    // What is being said now, before the sentence ends: lighter, and
+                    // replaced by the finished line.
+                    ForEach([Channel.others, .me].compactMap { coordinator.liveDrafts[$0] }, id: \.channel) { draft in
+                        HStack(alignment: .firstTextBaseline, spacing: Metrics.Spacing.regular) {
+                            Text(draft.channel == .me ? MeetingCopy.t("label.me") : MeetingCopy.t("label.others"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 84, alignment: .leading)
+                            Text(draft.text)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityLabel(String(localized: "live.draft \(draft.text)", bundle: .localized))
+                        }
+                        .id(draft.channel == .me ? -2 : -1)
+                    }
                 }
                 .padding(Metrics.Inset.panel)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -283,6 +300,10 @@ struct LiveView: View {
             .onChange(of: coordinator.liveLines.last?.id) { _, id in
                 guard let id else { return }
                 withAnimation(.ambarQuick) { proxy.scrollTo(id, anchor: .bottom) }
+            }
+            .onChange(of: coordinator.liveDrafts[.others]?.text ?? coordinator.liveDrafts[.me]?.text) { _, text in
+                guard text != nil else { return }
+                proxy.scrollTo(coordinator.liveDrafts[.others] != nil ? -1 : -2, anchor: .bottom)
             }
         }
     }

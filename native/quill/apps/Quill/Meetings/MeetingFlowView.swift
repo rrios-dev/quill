@@ -1,3 +1,4 @@
+import AppCore
 import AppKit
 import GlassUI
 import ListenKit
@@ -336,6 +337,22 @@ private struct PersonCard: View {
                     .buttonStyle(.plain)
                     .help(MeetingCopy.t("synthesis.participant.help"))
                 }
+            }
+            if !row.candidates.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(String(localized: "people.choose \(row.name)", bundle: .localized))
+                        .font(.system(size: 12))
+                        .fixedSize(horizontal: false, vertical: true)
+                    FlowLayout(spacing: 6) {
+                        ForEach(row.candidates, id: \.id) { person in
+                            Button(model.personTitle(person)) { model.choosePerson(person.id, for: row.label) }
+                        }
+                        Button(MeetingCopy.t("people.choose.new")) { model.choosePerson(nil, for: row.label) }
+                    }
+                    .controlSize(.small)
+                }
+                .padding(8)
+                .background(Color.orange.opacity(0.1), in: .rect(cornerRadius: 8))
             }
             if let split = row.split {
                 VoiceProposal(text: String(localized: "people.voice.split \(model.personTitle(split.kept)) \(model.personTitle(split.other))",

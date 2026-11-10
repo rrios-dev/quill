@@ -151,6 +151,7 @@ struct GeneralPane: View {
                     Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                 }
                 Text(PickerCopy.string("general.shortcut.note \(QuillSupport.productName)")).font(.caption).foregroundStyle(.secondary)
+                Text(PickerCopy.string("general.dictation.note \(model.shortcut.displayString)")).font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 Toggle(PickerCopy.string("general.launchAtLogin"), isOn: Binding(

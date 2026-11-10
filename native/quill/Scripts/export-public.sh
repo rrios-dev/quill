@@ -7,8 +7,8 @@
 # path in the code, the scripts and the tests holds without edits:
 #
 #   native/quill/                  the package (everything tracked, minus the export markers)
-#   native/packages/{AppCore,GlassUI}   the two Ámbar libraries Quill reuses
-#   native/Package.swift           a package that declares only those two (public/Package.swift)
+#   native/packages/{AppCore,GlassUI,VoiceKit,AgentHost}   the Ámbar libraries Quill reuses
+#   native/Package.swift           a package that declares only those (public/Package.swift)
 #   native/Scripts/                the shared localization check Quill's own check calls
 #   docs/initiatives/quill/        the design documents the tests and the code cite
 #
@@ -37,6 +37,8 @@ copy_tracked() {
 copy_tracked native/quill
 copy_tracked native/packages/AppCore
 copy_tracked native/packages/GlassUI
+copy_tracked native/packages/VoiceKit
+copy_tracked native/packages/AgentHost
 copy_tracked docs/initiatives/quill
 # The owner's decision journal is how the work is steered, not what the code cites.
 rm -f "$DEST/docs/initiatives/quill/JOURNAL.md"
