@@ -172,7 +172,8 @@ struct MeetingHistoryView: View {
         VStack(alignment: .leading, spacing: Metrics.Spacing.regular) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(meeting.title).font(.system(size: 20, weight: .bold))
+                    EditableTitle(title: meeting.title, size: 20) { model.coordinator.renameMeeting(meeting.id, to: $0) }
+                        .id(meeting.id)
                     FlowLayout(spacing: 6) {
                         ForEach(model.names(of: meeting), id: \.label) { entry in
                             Text(entry.name)

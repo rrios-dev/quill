@@ -34,6 +34,7 @@ final class MeetingWindowController: NSObject, NSWindowDelegate {
             let window = NSWindow(contentViewController: hosting)
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.title = model.record.title
+            model.onRenamed = { [weak window] title in window?.title = title }
             // Small enough to go in any tile (the owner's main display is 1080 pt wide,
             // vertical, and Tessera tiles it); the layout adapts to whatever it gets.
             window.contentMinSize = MeetingLayout.minimumSize
@@ -538,7 +539,7 @@ private struct MeetingOverview: View {
         let palette = model.palette
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.record.title).font(.system(size: 22, weight: .bold))
+                EditableTitle(title: model.record.title, size: 22) { model.rename($0) }
                 Text("\(model.record.sourceApp) · \(model.record.startedAt.formatted(date: .abbreviated, time: .shortened)) · \(MeetingCopy.duration(model.record.duration))")
                     .font(.system(size: 13)).foregroundStyle(.secondary)
             }

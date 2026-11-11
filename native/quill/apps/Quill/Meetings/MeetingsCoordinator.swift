@@ -1133,6 +1133,25 @@ final class MeetingsCoordinator {
     func meetingChanged() {
         history?.reload()
     }
+
+    /// Renames a meeting from the history: through its window when it is open, so the
+    /// window's copy of the meeting is the one saved and nothing overwrites the name.
+    func renameMeeting(_ id: UUID, to title: String) {
+        if let open = meetingWindows[id]?.flowModel {
+            open.rename(title)
+            return
+        }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, var record = store.meeting(id), record.title != trimmed else { return }
+        record.title = trimmed
+        do {
+            try store.save(record)
+            countUsage("meetings_renamed", 1)
+        } catch {
+            log.error("could not rename the meeting: \(error)")
+        }
+        meetingChanged()
+    }
 }
 
 // The Translation framework's session is used only from the main actor here (the

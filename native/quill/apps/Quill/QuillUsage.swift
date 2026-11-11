@@ -13,7 +13,7 @@ enum QuillUsage {
         "launches", "rewrites", "meetings", "meeting_minutes", "syntheses", "corrections",
         "voices_recognised", "voices_split", "microphone_muted_in_quill",
         // EFFICIENCY.md E7, E8.
-        "meetings_started_by_agent", "dictations",
+        "meetings_started_by_agent", "dictations", "meetings_renamed", "update_notices",
         "provider_apple", "provider_openrouter", "provider_openai", "provider_vercel", "provider_custom",
     ]
 

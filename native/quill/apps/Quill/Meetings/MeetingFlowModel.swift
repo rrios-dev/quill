@@ -780,11 +780,17 @@ final class MeetingFlowModel {
 
     func openFocusEditor() { coordinator.openFocusEditor() }
 
+    /// The window follows a new name.
+    @ObservationIgnored var onRenamed: (String) -> Void = { _ in }
+
+    /// A name of the user's own for the meeting, from its window or the history.
     func rename(_ title: String) {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != record.title else { return }
         record.title = trimmed
         persist()
+        onRenamed(trimmed)
+        coordinator.countUsage("meetings_renamed", 1)
     }
 
     private func persist() {

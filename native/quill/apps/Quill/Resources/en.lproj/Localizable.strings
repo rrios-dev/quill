@@ -437,6 +437,8 @@
 "menu.meeting.separating" = "Telling voices apart…";
 "menu.meeting.showLive" = "Show the live transcript";
 "menu.meeting.history" = "Meetings…";
+"meeting.rename" = "Rename the meeting";
+"meeting.rename.placeholder" = "Meeting name";
 "meetings.defaultTitle %@" = "Meeting on %@";
 "meetings.error.noApp" = "No meeting app is open";
 "meetings.error.noAudio" = "The meeting app is not playing audio yet";
@@ -678,6 +680,10 @@
 "menu.update %@ %@" = "Update %1$@ to %2$@…";
 "menu.update.badge %@ %@" = "%1$@: version %2$@ is available";
 "menu.update.skip" = "Skip This Version";
+"update.notice.title %@ %@" = "%1$@ %2$@ is available";
+"update.notice.body" = "It installs in a moment and reopens on its own.";
+"update.notice.later" = "Later";
+"update.notice.install" = "Update";
 "usage.section" = "Usage statistics";
 "usage.toggle" = "Share anonymous usage statistics";
 "usage.note" = "Once a day: how many times you used each feature (rewriting, meetings, syntheses, corrections), the Quill and macOS versions and your language, with a random id that is deleted when you turn this off. Never your text, transcripts, names or address. Kept on our own server in the EU.";

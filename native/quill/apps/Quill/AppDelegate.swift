@@ -25,8 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let log = QuillLog(category: "app")
     /// Meetings (MEETINGS.md §6). Nil if its data folder cannot be created.
     private(set) var meetings: MeetingsCoordinator?
-    /// "A newer version exists" (J-07): asked of the public repository once a day.
-    let updates = UpdateCheck(repository: "rrios-dev/quill", currentVersion: AppDelegate.runningVersion)
+    /// "A newer version exists" (J-07): asked of the public repository every few hours
+    /// (J-20; once a day left people a version behind for days).
+    let updates = UpdateCheck(repository: "rrios-dev/quill", currentVersion: AppDelegate.runningVersion,
+                              interval: 4 * 3600)
+    private let updateNotice = UpdateNoticeController()
 
     private static var runningVersion: String {
         #if DEBUG
@@ -778,14 +781,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard DebugHooks.updateCheckVersion != nil else { return }
         #endif
         Task { await checkForUpdates() }
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+        // Hourly and on waking: a Mac that sleeps through the night would otherwise wait
+        // for the next tick. `UpdateCheck` still asks GitHub only once its interval passed.
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.checkForUpdates() }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                // The network comes back a moment after the lid opens.
+                try? await Task.sleep(for: .seconds(20))
+                await self?.checkForUpdates()
+            }
         }
     }
 
     func checkForUpdates(now force: Bool = false) async {
         if force { await updates.checkNow() } else { await updates.checkIfDue() }
         showUpdateBadge()
+        showUpdateNoticeIfNew()
+    }
+
+    /// The card in the corner, once per version — never while a meeting is recorded or
+    /// a rewrite or dictation is open; the next check brings it then.
+    private func showUpdateNoticeIfNew() {
+        guard meetings?.isListening != true, !dictation.isActive, updates.available != nil else { return }
+        guard let update = updates.takeNotice() else { return }
+        updateNotice.show(version: update.version) { [weak self] in self?.downloadUpdate() }
+        usage.count("update_notices")
     }
 
     func showUpdateBadge() {

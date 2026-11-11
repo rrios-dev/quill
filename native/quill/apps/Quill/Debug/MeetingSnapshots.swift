@@ -142,6 +142,11 @@ enum MeetingSnapshots {
                 await snap("meeting-\(name)", meetings.debugMeetingWindow(record.id))
             }
         }
+        // A name of the user's own, given from the history while the window is open: the
+        // window's copy is the one renamed, its title follows, and the history shows it.
+        meetings.renameMeeting(record.id, to: "Migración de facturación")
+        await settle()
+        print("RENAMED window=\(meetings.debugMeetingWindow(record.id)?.title ?? "-") stored=\(meetings.store.meeting(record.id)?.title ?? "-")")
         meetings.debugMeetingWindow(record.id)?.close()
 
         meetings.openHistory()
