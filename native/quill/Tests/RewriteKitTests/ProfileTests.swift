@@ -160,6 +160,11 @@ struct ProfileTests {
             scope: .rewrite, register: .keep, tone: .keep, length: .shorter, abbreviations: .expand,
             interjections: .remove, emoji: .keep, preserve: [.names, .numbers, .links],
             targetLanguage: nil, lengthBand: .init(0.3, 1.05)),
+        // Created in English it translates into Spanish; in Spanish, into English.
+        .translate: ProfileSettings(
+            scope: .rewrite, register: .keep, tone: .keep, length: .keep, abbreviations: .expand,
+            interjections: .keep, emoji: .keep, preserve: [.names, .numbers, .links, .lineBreaks],
+            targetLanguage: "es", lengthBand: .init(0.6, 1.6)),
         .synthesis: ProfileSettings(
             scope: .rewrite, register: .keep, tone: .direct, length: .shorter, abbreviations: .expand,
             interjections: .remove, emoji: .remove, preserve: [.names, .numbers, .links],
@@ -185,11 +190,21 @@ struct ProfileTests {
 
     @Test("the built-ins come in PRODUCT's order with their ids; the first four keep their numbers")
     func builtInOrder() throws {
-        let order: [BuiltInProfile] = [.spelling, .work, .formal, .friends, .dictation, .concise, .synthesis]
+        let order: [BuiltInProfile] = [.spelling, .work, .formal, .friends, .dictation, .concise, .translate, .synthesis]
         #expect(try BuiltInProfiles.all(language: "es").map(\.builtIn) == order.filter(\.isShipped))
         #expect(BuiltInProfile.shipped == [.spelling, .work, .formal, .friends, .dictation, .concise],
-                "the shipping rule: Synthesize waits for its gate (README)")
-        #expect(BuiltInProfile.allCases.map(\.rawValue) == ["spelling", "work", "formal", "friends", "dictation", "concise", "synthesis"])
+                "the shipping rule: Synthesize and Translate wait for their gates (README, J-21)")
+        #expect(BuiltInProfile.allCases.map(\.rawValue) == ["spelling", "work", "formal", "friends", "dictation", "concise", "translate", "synthesis"])
+    }
+
+    @Test("Translate aims at the other language of whoever creates it, with examples in that direction")
+    func translateTargetsTheOtherLanguage() throws {
+        let spanish = try BuiltInProfiles.make(.translate, language: "es")
+        let english = try BuiltInProfiles.make(.translate, language: "en")
+        #expect(spanish.settings.targetLanguage == "en")
+        #expect(english.settings.targetLanguage == "es")
+        #expect(spanish.examples.map(\.input) != english.examples.map(\.input))
+        #expect(!BuiltInProfiles.hasUserAuthoredText(english))
     }
 
     // MARK: Abbreviations

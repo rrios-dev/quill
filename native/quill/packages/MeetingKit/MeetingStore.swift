@@ -61,6 +61,9 @@ public final class MeetingStore: @unchecked Sendable {
                 ],
                 focuses: [
                     "work": entry("focus.builtin.work", ".objective"),
+                    "weekly": entry("focus.builtin.weekly", ".objective"),
+                    "client": entry("focus.builtin.client", ".objective"),
+                    "mine": entry("focus.builtin.mine", ".objective"),
                     "analysis": entry("focus.builtin.analysis", ".objective"),
                     "brief": entry("focus.builtin.brief", ".objective"),
                 ]
@@ -108,6 +111,19 @@ public final class MeetingStore: @unchecked Sendable {
     /// The most recent meeting, decoding only that one.
     public func latestMeeting() -> MeetingRecord? {
         summaries().first.flatMap { meeting($0.id) }
+    }
+
+    /// The name the user gave their own voice in their most recent meeting where they gave
+    /// one, looking back at most `limit` meetings. A synthesis needs it when this meeting's
+    /// own voice is still "Yo" or was not captured, so the user's own focus recognises
+    /// them when others address them by name.
+    public func ownName(limit: Int = 20) -> String? {
+        for summary in summaries().prefix(limit) {
+            guard let name = meeting(summary.id)?.transcript.names["me"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty, name != "Yo" else { continue }
+            return name
+        }
+        return nil
     }
 
     /// Newest first, from the index: no transcript is decoded unless it changed since it

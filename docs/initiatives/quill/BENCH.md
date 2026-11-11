@@ -272,6 +272,9 @@ Scripts/bench.sh run --profiles work,spelling \
 Scripts/bench.sh gate --profiles work,spelling \
   --models apple.on-device:system,openrouter:<model-id> \
   --judge openrouter:<allowed-judge-id> --budget 2.00 --label gate-1
+# The same with --dry-run prints the estimate, and whether the total budget would
+# refuse it, without a request, a gate-log entry or a sealed file (before 2026-11-11
+# gate ignored the flag and ran for real).
 
 Scripts/bench.sh compare tuning-2 tuning-3
 Scripts/bench.sh baseline gate-1            # copy into the committed baselines

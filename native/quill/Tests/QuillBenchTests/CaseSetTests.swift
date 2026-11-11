@@ -270,7 +270,9 @@ struct CaseSetTests {
     func referencesPassGuards() throws {
         let guards = try OutputGuards()
         for (_, benchCase) in Self.active {
-            let profile = try BuiltInProfiles.make(benchCase.profile, language: benchCase.language)
+            // As the bench builds it (BenchRunner): the Spanish profile, so Translate aims at
+            // English whatever the case's own language.
+            let profile = try BuiltInProfiles.make(benchCase.profile, language: "es")
             let examples = (benchCase.pinnedExample.map { [$0] } ?? []) + profile.examples
             for (index, reference) in benchCase.references.enumerated() {
                 let outcome = guards.evaluate(input: benchCase.input, output: reference,

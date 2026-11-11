@@ -57,6 +57,8 @@ final class RewriteSession {
     /// The profiles 1–9 select, in the menu's order.
     private(set) var profileList: [Profile] = []
     private(set) var model: ModelSelection?
+    /// Another model to try after the user's own plan could not serve a rewrite (J-23).
+    private(set) var fallback: ModelSelection?
     private(set) var capture: Capture?
     /// D toggles it in Ready and Flagged.
     private(set) var showsDiff = false
@@ -79,6 +81,8 @@ final class RewriteSession {
 
     /// The resolved model's provider, as the picker names it.
     var providerName: String? { model.flatMap { registry[$0.provider]?.descriptor.displayName } }
+
+    func providerName(_ id: ProviderID) -> String { registry[id]?.descriptor.displayName ?? id.rawValue }
     private var pickerShown = false
     /// The result was applied without the picker (the toast then names the profile).
     private var appliedDirectly = false
@@ -275,6 +279,7 @@ final class RewriteSession {
     /// Checks what must happen before anything is sent: a model, consent, the Return a
     /// large hosted text or Services needs. Starts the generation when nothing does.
     private func begin(confirmed: Bool = false) async {
+        fallback = nil
         guard let profile else { return fail(.chooseModel(profile: "")) }
         guard let model, let provider = registry[model.provider] else {
             return fail(.chooseModel(profile: profile.name))
@@ -413,6 +418,15 @@ final class RewriteSession {
             state = .tooLong(model: model, suggestion: usedSuggestion ? nil : suggestion)
         case .failed(let code, let partial):
             state = .failed(.provider(code), partial: partial)
+            if !usedSuggestion, PlanFallback.applies(to: code) {
+                let global = ((try? settings.settings()) ?? QuillSettings()).globalModel
+                let registry = registry
+                Task {
+                    let pick = await PlanFallback.pick(failed: model, code: code, global: global, registry: registry,
+                                                       recommended: AppEnvironment.recommendedModels)
+                    if generation == generationNumber { fallback = pick }
+                }
+            }
         }
         // A one-off instruction is not a profile: the next rewrite starts from the last one.
         if let profile, activeInstruction == nil { _ = try? settings.update { $0.lastUsedProfile = profile.id } }
@@ -554,6 +568,13 @@ final class RewriteSession {
         case .failed(let failure, _):
             switch key {
             case .returnKey:
+                if let fallback {
+                    usedSuggestion = true
+                    model = fallback
+                    self.fallback = nil
+                    await begin()
+                    return
+                }
                 switch Self.action(for: failure) {
                 case .openSettings: onEffect(.openSettings(.providers))
                 case .retry: await rerun()

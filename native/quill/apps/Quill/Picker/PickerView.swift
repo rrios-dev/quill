@@ -219,6 +219,9 @@ struct PickerView: View {
             Label(PickerCopy.failure(failure), systemImage: "exclamationmark.circle")
                 .font(.body).foregroundStyle(.primary)
             if !partial.isEmpty { resultText(partial).foregroundStyle(.secondary) }
+            if let fallback = session.fallback {
+                secondary(PickerCopy.string("picker.fallback \(session.providerName(fallback.provider)) \(fallback.model.rawValue)"))
+            }
         case .tooLong(let model, let suggestion):
             message(PickerCopy.string("picker.tooLong \(model.model.rawValue)"))
             secondary(suggestion.map { PickerCopy.string("picker.tooLong.suggestion \($0.model.rawValue)") }
@@ -522,8 +525,8 @@ enum PickerActions {
         case .truncated, .refused:
             return Bar(primary: action(.r, "⌘R", "picker.hint.rerun"), dismiss: close)
         case .failed(let failure, _):
-            let label: String.LocalizationValue = RewriteSession.action(for: failure) == .openSettings
-                ? "picker.hint.openSettings" : "picker.hint.retry"
+            let label: String.LocalizationValue = session.fallback != nil ? "picker.hint.tryFallback"
+                : RewriteSession.action(for: failure) == .openSettings ? "picker.hint.openSettings" : "picker.hint.retry"
             return Bar(primary: action(.returnKey, "↩", label), dismiss: close)
         case .tooLong(_, let suggestion):
             return Bar(primary: suggestion == nil ? nil : action(.returnKey, "↩", "picker.hint.trySuggestion"), dismiss: close)

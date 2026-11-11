@@ -48,11 +48,19 @@ public struct ProviderTraits: Sendable, Hashable {
     public enum Cost: Sendable, Hashable {
         case free
         case payPerUse
+        /// Covered by a plan the user already pays for, within its usage limits.
+        case includedInPlan
     }
 
     public enum Credential: Sendable, Hashable {
         case none
         case apiKey
+        /// The user signs in to another app on this Mac (named, a brand); Quill never
+        /// sees or stores the credential.
+        case signedInApp(String)
+        /// The user signs in to their account (named, a brand) in the browser; Quill keeps
+        /// the tokens that sign-in returns in the Keychain.
+        case accountSignIn(String)
     }
 
     public var execution: Execution
@@ -83,10 +91,13 @@ public struct ProviderTraits: Sendable, Hashable {
         switch cost {
         case .free: result.append(.free)
         case .payPerUse: result.append(.paidPerUse)
+        case .includedInPlan: result += [.includedInPlan, .countsTowardPlanLimits]
         }
         switch credential {
         case .none: result.append(.noAccountNeeded)
         case .apiKey: result.append(.requiresAPIKey)
+        case .signedInApp(let app): result.append(.requiresSignedInApp(app))
+        case .accountSignIn(let account): result.append(.requiresAccountSignIn(account))
         }
         if let tokens = maxContextTokens, tokens < Self.smallContextThreshold {
             result.append(.smallContext(tokens: tokens))
@@ -122,6 +133,8 @@ public enum Tradeoff: Sendable, Hashable {
     /// The text reaches only the model vendor, with no aggregator in between.
     case singleRecipient
     case strongModels
+    /// No charge per use: the plan the user already pays for covers it.
+    case includedInPlan
 
     // Drawbacks
     case paidPerUse
@@ -144,15 +157,22 @@ public enum Tradeoff: Sendable, Hashable {
     /// A server on this Mac may itself forward the text elsewhere; privacy depends on
     /// what it does.
     case localServerMayForward
+    /// Use counts toward the limits of the user's plan, shared with their other use.
+    case countsTowardPlanLimits
+    /// Needs this app (a brand) installed and signed in to the user's own account.
+    case requiresSignedInApp(String)
+    /// Needs the user to sign in with their account (a brand) once, in the browser.
+    case requiresAccountSignIn(String)
 
     public var isAdvantage: Bool {
         switch self {
         case .free, .staysOnDevice, .worksOffline, .noAccountNeeded, .unlimitedUse,
-             .manyModels, .singleRecipient, .strongModels:
+             .manyModels, .singleRecipient, .strongModels, .includedInPlan:
             true
         case .paidPerUse, .textLeavesDevice, .requiresNetwork, .requiresAPIKey, .smallContext,
              .smallModel, .requiresAppleIntelligence, .limitedLanguages, .mayRefuseContent,
-             .dataPolicyVariesByModel, .singleVendorCatalog, .localServerMayForward:
+             .dataPolicyVariesByModel, .singleVendorCatalog, .localServerMayForward, .countsTowardPlanLimits,
+             .requiresSignedInApp, .requiresAccountSignIn:
             false
         }
     }

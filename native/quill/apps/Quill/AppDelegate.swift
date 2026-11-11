@@ -50,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The user's terminal PATH, so Claude Code and Codex are found wherever the user's
+        // shell finds them: the plan provider and Settings → Agents both need it.
+        Task { await LoginShellPath.importIntoProcess() }
         let environment = AppEnvironment()
         self.environment = environment
         NSApplication.shared.mainMenu = EditMenu.makeMainMenu()

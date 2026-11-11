@@ -194,6 +194,12 @@ struct BenchRunner: Sendable {
             return ModelInfo(contextTokens: provider.descriptor.traits.maxContextTokens,
                              pricing: ModelPricing(inputPerMillion: 0, outputPerMillion: 0), runsOnDevice: true)
         }
+        // A plan the user already pays for costs nothing per call; its limits are the plan's.
+        if provider.descriptor.traits.cost == .includedInPlan {
+            let listed = try? await provider.models().first { $0.id == spec.model }
+            return ModelInfo(contextTokens: listed?.contextTokens ?? 128_000,
+                             pricing: ModelPricing(inputPerMillion: 0, outputPerMillion: 0), runsOnDevice: false)
+        }
         var listed: ModelDescriptor?
         if environment.hasKey(for: spec.provider) {
             listed = try? await provider.models().first { $0.id == spec.model }

@@ -13,6 +13,7 @@ struct ProviderDescriptorTests {
             ChatCompletionsProvider.openAI(credentials: store).descriptor,
             ChatCompletionsProvider.openRouter(credentials: store).descriptor,
             ChatCompletionsProvider.vercelAIGateway(credentials: store).descriptor,
+            ClaudeCodeProvider().descriptor,
         ]
         #if canImport(FoundationModels)
         list.append(AppleOnDeviceProvider().descriptor)
@@ -44,6 +45,9 @@ struct ProviderDescriptorTests {
         #expect(descriptor.tradeoffs.contains(.free) == (descriptor.traits.cost == .free))
         #expect(descriptor.tradeoffs.contains(.paidPerUse) == (descriptor.traits.cost == .payPerUse))
         #expect(descriptor.tradeoffs.contains(.requiresAPIKey) == (descriptor.traits.credential == .apiKey))
+        let planned = descriptor.traits.cost == .includedInPlan
+        #expect(descriptor.tradeoffs.contains(.includedInPlan) == planned)
+        #expect(descriptor.tradeoffs.contains(.countsTowardPlanLimits) == planned, "a plan's limits are said with its price")
     }
 
     @Test("every provider shows at least one advantage and one drawback", arguments: Self.shipped)

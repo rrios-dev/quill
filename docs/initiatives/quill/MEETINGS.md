@@ -238,9 +238,12 @@ model applies it, and the tests check it on cases built for it.
   the tasks table: weight decides importance, not existence.
 - **A risk is never dropped for low weight.** A risk raised by *Contexto* or *Mínimo*
   that threatens a decision is reported; the reading may rank it lower.
-- **The synthesis says how it weighed.** A closing line lists the role map used
-  ("Decide: Roberto, Andrés · Contexto: Marta…"), so a reader can tell a weighted
-  reading from the transcript.
+- **The synthesis says how it weighed** when the weights differ: a closing line lists
+  the role map used ("Decide: Roberto, Andrés · Contexto: Marta…"), so a reader can tell
+  a weighted reading from the transcript. Among peers, or in a focus meant to be pasted
+  or read at a glance (Breve, Lo mío: `showsWeighting` off), the line said nothing and
+  was copied into team chats; it is left out, and the weighting is still stored with the
+  synthesis (J-21).
 - Roles and names are data in the prompt, delimited like the transcript; a name or role
   description cannot carry instructions.
 
@@ -258,6 +261,44 @@ Tech Lead, decide on technical matters; Marta: Soporte, context; Diego: Mobile, 
 and **role-sensitive expectations**: Marta's preference to launch both platforms
 together must appear as an objection, never as a decision; under a "support load" focus
 it must lead the reading. Two focuses × the recommended models, scored like S3.
+
+### 7.6 Built-in focuses (J-21, 2026-11-11)
+
+| Focus | For | Sections |
+|---|---|---|
+| Acta de producto (default) | acting on a product meeting | Decisiones · Propuestas sin cerrar · Tareas (with Depende de; unanswered asks as "Name (pedido, sin respuesta)") · Preguntas abiertas · Riesgos · Desacuerdos |
+| Weekly de equipo | a status round among peers | Estado por persona · Cruces (the same thing built twice first) · Bloqueos e incidencias · Tareas |
+| Cliente y requisitos | a meeting with whoever commissions the work | Qué piden · Qué prometimos · Por aclarar · Alcance y riesgos · Siguientes pasos |
+| Lo mío | the user's own to-do list | Me toca · Me piden · Espero de · Me afecta |
+| Breve | a message to paste in the team chat | one line and at most five items |
+| Análisis | understanding positions and arguments | per topic, then Lectura |
+
+Shared by every focus: who the user is (the name they gave their own voice in this
+meeting or the latest one where they named it, since in some calls their voice is not
+captured at all), the task rule and the speech-recognition rule of J-21.
+
+How they were measured: three real meetings (a weekly of five peers, a client meeting of
+six, two Product Owners) synthesised by the app's model (Claude Sonnet 5.5), each read
+against its full transcript by a fresh judge with no stake in the prompts, three rounds.
+`quill-bench synthesize --meeting <id> --focus <id>` reproduces a run on a saved meeting
+the way the app does it; results stay in the bench's results folder, outside the
+repository. Mean judge score of the focuses that were tested in every round went from
+2.6 (the old Acta on the weekly) to 3.8 (Weekly) and 3.8 (Acta on the Product Owners'
+meeting); "Lo mío" from 1.5 to a usable list once the user's name reached the model.
+Left open: a name heard several ways can still be written differently by two focuses of
+the same meeting (a shared glossary per meeting would fix it), and the client focus may
+still list a request our side declined as a step.
+
+Installed over `/Applications/Quill.app` on 2026-11-11 for the owner's trial (by J-05,
+the owner's "Instalarla en tu Mac"): release build of commit 19b7d170f, same team
+signature, still reading 1.5.1; the 1.5.1 bundle is kept in
+`native/quill/build/rollback-2026-11-11/Quill-1.5.1.app` of the main checkout, and the
+owner's rewrite model set to Gemini 3.8 Flash (J-22). Checked after installing, through
+the installed `quill-mcp`: the six focuses are listed, the untouched profiles carry the
+shipped guidance, Trabajo and Amigos rewrite the owner's texts correctly on Gemini, and
+"Lo mío" on the Product Owners' meeting lists the five requests addressed to the user by
+name although their voice was not captured. Not published. An MCP connection opened
+before the install keeps the old binary until it reconnects.
 
 ## 8. Open questions
 

@@ -62,6 +62,9 @@ enum Presentation {
         case .appleIntelligenceDisabled: Entry(key: "picker.failure.appleIntelligenceOff", action: .openAppleIntelligenceSettings)
         case .modelNotReady: Entry(key: "picker.failure.modelNotReady", action: .retry)
         case .unsupportedPlatform: Entry(key: "picker.failure.unsupportedPlatform", action: .openProviderSettings)
+        case .appNotInstalled: Entry(key: "picker.failure.appNotInstalled", action: .openProviderSettings)
+        case .notSignedIn: Entry(key: "picker.failure.notSignedIn", action: .openProviderSettings)
+        case .planNotEligible: Entry(key: "picker.failure.planNotEligible", action: .openProviderSettings)
         }
     }
 
@@ -139,6 +142,7 @@ enum Presentation {
         case .manyModels: Entry(key: "tradeoff.manyModels")
         case .singleRecipient: Entry(key: "tradeoff.singleRecipient")
         case .strongModels: Entry(key: "tradeoff.strongModels")
+        case .includedInPlan: Entry(key: "tradeoff.includedInPlan")
         case .paidPerUse: Entry(key: "tradeoff.paidPerUse")
         case .textLeavesDevice(let recipients):
             Entry(key: "tradeoff.textLeavesDevice %@", arguments: [recipientList(recipients)])
@@ -153,6 +157,10 @@ enum Presentation {
         case .dataPolicyVariesByModel: Entry(key: "tradeoff.dataPolicyVariesByModel")
         case .singleVendorCatalog: Entry(key: "tradeoff.singleVendorCatalog")
         case .localServerMayForward: Entry(key: "tradeoff.localServerMayForward")
+        case .countsTowardPlanLimits: Entry(key: "tradeoff.countsTowardPlanLimits")
+        // The app's name is a brand: not translated.
+        case .requiresSignedInApp(let app): Entry(key: "tradeoff.requiresSignedInApp %@", arguments: [app])
+        case .requiresAccountSignIn(let account): Entry(key: "tradeoff.requiresAccountSignIn %@", arguments: [account])
         }
     }
 

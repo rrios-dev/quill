@@ -345,6 +345,27 @@
    ]
   },
   {
+   "id": "g3-translated-possessive-and-title",
+   "profile": "work",
+   "input": "el sr. Whitfield cena en casa de Iker el viernes",
+   "output": "Mr. Whitfield is having dinner at Iker's place on Friday.",
+   "verdict": "result",
+   "target": "en",
+   "exclude": [
+    "G3"
+   ]
+  },
+  {
+   "id": "g6-misspelled-greeting-corrected",
+   "profile": "spelling",
+   "input": "ola, mañana no puedo ir a la reunion xq tengo medico",
+   "output": "Hola, mañana no puedo ir a la reunión porque tengo médico.",
+   "verdict": "result",
+   "exclude": [
+    "G6"
+   ]
+  },
+  {
    "id": "g6-thanks-sign-off-added",
    "profile": "work",
    "input": "te mando el informe con los cambios que comentamos",

@@ -293,6 +293,48 @@
       "model" : "openai/gpt-6-luna",
       "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
       "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "sonnet",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "sonnet",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "sonnet",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "sonnet",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "not recommended",
+      "model" : "sonnet",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "verdict" : "not ready"
+    },
+    {
+      "evaluationVersion" : 2,
+      "label" : "works well",
+      "model" : "sonnet",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "verdict" : "ready (confirmed)"
     }
   ],
   "schemaVersion" : 1

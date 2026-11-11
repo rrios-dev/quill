@@ -184,6 +184,40 @@ public final class ProfileStore: @unchecked Sendable {
         }
     }
 
+    /// Brings every built-in the user never edited (still version 1) up to the shipped
+    /// settings, guidance and examples. A profile is seeded once and the bench keeps
+    /// tuning the shipped text; without this the first users kept the untuned guidance
+    /// for good (seeded 2026-10-03, tuned 2026-10-04). The profile stays version 1, so a
+    /// later tuning reaches it too; anything the user changed bumps the version and is
+    /// never touched. A shipped name two languages share ("Formal") resolves to
+    /// `language`, the one the app seeds in. Returns the refreshed ones.
+    @discardableResult
+    public func refreshUntouchedBuiltIns(language: String) throws -> [Profile] {
+        let entries = try BuiltInProfiles.entries()
+        return try lock.withLock {
+            var refreshed: [Profile] = []
+            let directories = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+            for id in directories.compactMap({ UUID(uuidString: $0.lastPathComponent) }) {
+                guard case .loaded(var profile, _) = try readCurrent(id), profile.version == 1,
+                      let builtIn = profile.builtIn, builtIn.isShipped, let entry = entries[builtIn],
+                      case let seeded = entry.names.filter({ $0.value == profile.name }).keys.sorted(),
+                      let seededIn = seeded.contains(language) ? language : seeded.first else { continue }
+                let shipped = try BuiltInProfiles.make(builtIn, language: seededIn, now: files.now())
+                let pairs = { (profile: Profile) in profile.examples.map { [$0.input, $0.output] } }
+                guard profile.settings != shipped.settings || profile.guidance != shipped.guidance
+                    || pairs(profile) != pairs(shipped) else { continue }
+                profile.settings = shipped.settings
+                profile.guidance = shipped.guidance
+                profile.examples = shipped.examples
+                profile.updatedAt = files.now().roundedToMilliseconds
+                try profile.validate()
+                try files.write(profile, schemaVersion: Self.schemaVersion, to: currentURL(profile.id))
+                refreshed.append(profile)
+            }
+            return refreshed
+        }
+    }
+
     // MARK: Internals
 
     private func directory(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }

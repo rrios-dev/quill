@@ -215,19 +215,26 @@ jobs the system Writing Tools are used for).
 | lengthBand | 0.8–1.8 | 0.6–1.6 | 0.7–1.8 | 0.8–1.4 |
 | id (`BuiltInProfile`) | `spelling` | `work` | `formal` | `friends` |
 
-| | Clean up dictation | Concise | Synthesize |
-|---|---|---|---|
-| scope | spellingOnly | rewrite | rewrite |
-| register | keep | keep | keep |
-| tone | keep | keep | direct |
-| length | keep | shorter | shorter |
-| abbreviations | expand | expand | expand |
-| interjections | remove (inert in the prompt, where the guidance names the fillers; it lets the guards accept their removal) | remove | remove |
-| emoji | keep | keep | remove |
-| preserve | names, numbers, links, lineBreaks | names, numbers, links | names, numbers, links |
-| targetLanguage | none | none | none |
-| lengthBand | 0.5–1.1 | 0.3–1.05 | 0.1–1.05 |
-| id (`BuiltInProfile`) | `dictation` | `concise` | `synthesis` |
+| | Clean up dictation | Concise | Synthesize | Translate |
+|---|---|---|---|---|
+| scope | spellingOnly | rewrite | rewrite | rewrite |
+| register | keep | keep | keep | keep |
+| tone | keep | keep | direct | keep |
+| length | keep | shorter | shorter | keep |
+| abbreviations | expand | expand | expand | expand |
+| interjections | remove (inert in the prompt, where the guidance names the fillers; it lets the guards accept their removal) | remove | remove | keep |
+| emoji | keep | keep | remove | keep |
+| preserve | names, numbers, links, lineBreaks | names, numbers, links | names, numbers, links | names, numbers, links, lineBreaks |
+| targetLanguage | none | none | none | the reader's other language: `en` when created in Spanish, `es` in English |
+| lengthBand | 0.5–1.1 | 0.3–1.05 | 0.1–1.05 | 0.6–1.6 |
+| id (`BuiltInProfile`) | `dictation` | `concise` | `synthesis` | `translate` |
+
+**Translate** (added 2026-11-11, J-21; shipped once its gate passes) — "Al inglés"
+for a Spanish reader, "To Spanish" for an English one: translates as a native
+speaker would write it, in the same tone and register, idioms by their equivalent;
+keeps names, brands, technical terms, code, links and figures; text already in the
+target language only gets its errors fixed. Its examples go in the profile's own
+direction (`localizedExamples` in `builtins.json`).
 
 **Spelling only** — fixes spelling, accents, missing *h*, capitalisation,
 punctuation (including opening ¿ ¡), agreement, and expands chat

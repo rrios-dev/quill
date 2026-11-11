@@ -25,6 +25,15 @@ final class ProvidersPaneModel {
         var modelsFailure: ProviderError.Code?
         var connection: Connection?
         var address: URL?
+        /// For a provider the user signs in to in the browser (ChatGPT); `nil` otherwise.
+        var account: AccountState?
+        /// A provider that drives an app on this Mac (Claude Code): no key, no sign-in here.
+        var usesLocalApp = false
+    }
+
+    enum AccountState: Equatable {
+        case signedOut
+        case signedIn(email: String?)
     }
 
     enum Connection: Equatable {
@@ -52,6 +61,12 @@ final class ProvidersPaneModel {
     /// Every listed model's readiness label for the last used profile, computed when the
     /// lists change — never while drawing a row (a list holds hundreds).
     private(set) var labels: [ModelSelection: ReadinessLabel] = [:]
+    /// The provider whose browser sign-in is under way.
+    private(set) var signingIn: ProviderID?
+    /// The last sign-in's or sign-out's outcome, to say in the row.
+    private(set) var accountMessage: Presentation.Entry?
+    /// "You're using your ChatGPT plan", shown once, after the first sign-in (OpenAI's UI guidelines).
+    var showsPlanWelcome = false
 
     private let settings: SettingsStore
     private let profiles: ProfileStore
@@ -94,6 +109,12 @@ final class ProvidersPaneModel {
             let needsKey = descriptor.traits.credential == .apiKey
             let hasKey = needsKey && ((try? credentials.secret(for: descriptor.id)) ?? nil)?.isEmpty == false
             let previous = self.rows.first { $0.id == descriptor.id }
+            var account: AccountState?
+            if case .accountSignIn = descriptor.traits.credential {
+                let saved = ChatGPTAccountStore(credentials: credentials).load()
+                account = saved.map { $0.canUsePlan && !$0.accessToken.isEmpty } == true
+                    ? .signedIn(email: saved?.email) : .signedOut
+            }
             rows.append(Row(
                 id: descriptor.id, name: descriptor.displayName, isCustom: servers[descriptor.id] != nil,
                 isRemote: remote, recipients: recipients, advantages: descriptor.advantages,
@@ -101,7 +122,8 @@ final class ProvidersPaneModel {
                 availability: await provider.availability(),
                 models: cache.cached(descriptor.id)?.models.map(\.descriptor) ?? previous?.models ?? [],
                 modelsFailure: previous?.modelsFailure, connection: previous?.connection,
-                address: servers[descriptor.id]?.baseURL))
+                address: servers[descriptor.id]?.baseURL, account: account,
+                usesLocalApp: { if case .signedInApp = descriptor.traits.credential { true } else { false } }()))
         }
         self.rows = rows
         // The on-device model lists itself without the network; a server's list is
@@ -201,6 +223,60 @@ final class ProvidersPaneModel {
         await refresh()
     }
 
+    // MARK: Accounts (Sign in with ChatGPT)
+
+    private var flow: ChatGPTSignInFlow?
+
+    /// Opens the browser to sign in; the row says how it went.
+    func signIn(_ id: ProviderID) async {
+        guard signingIn == nil else { return }
+        let flow = ChatGPTSignInFlow(credentials: credentials)
+        let firstSignIn = flow.account == nil
+        self.flow = flow
+        signingIn = id
+        accountMessage = nil
+        let outcome = await flow.run()
+        signingIn = nil
+        self.flow = nil
+        switch outcome {
+        case .signedIn:
+            accountMessage = nil
+            showsPlanWelcome = firstSignIn
+        case .planNotAllowed: accountMessage = Presentation.Entry(key: "providers.account.planNotAllowed")
+        case .declined: accountMessage = Presentation.Entry(key: "providers.account.declined")
+        case .cancelled: accountMessage = Presentation.Entry(key: "providers.account.cancelled")
+        case .failed(let reason):
+            log.error("sign-in failed: \(reason)")
+            accountMessage = Presentation.Entry(key: "providers.account.failed")
+        }
+        await refresh()
+        if case .signedIn = outcome { await testConnection(id) }
+    }
+
+    /// "Use my Claude plan" in onboarding: the provider's recommended model, else its first.
+    func useLocalApp(_ id: ProviderID) async {
+        await loadModels(for: id)
+        guard let row = rows.first(where: { $0.id == id }),
+              let model = row.models.first(where: \.isRecommended) ?? row.models.first else { return }
+        choose(ModelSelection(provider: id, model: model.id))
+    }
+
+    func cancelSignIn() {
+        flow?.cancel()
+    }
+
+    /// Ends the session at OpenAI and here; says so when OpenAI did not confirm it.
+    func signOut(_ id: ProviderID) async {
+        let confirmed = await ChatGPTSignInFlow(credentials: credentials).signOut()
+        accountMessage = confirmed ? nil : Presentation.Entry(key: "providers.account.revokeUnconfirmed")
+        cache.remove(id)
+        if let index = rows.firstIndex(where: { $0.id == id }) {
+            rows[index].models = []
+            rows[index].connection = nil
+        }
+        await refresh()
+    }
+
     // MARK: Models
 
     /// The provider's models: the cache while fresh, the provider on `force` or when stale.
@@ -217,7 +293,22 @@ final class ProvidersPaneModel {
     }
 
     /// "Test connection": lists the models, which needs the key and the network to work.
+    /// A local tool's list proves nothing (it never asks anyone), so Claude Code answers
+    /// one tiny request instead, on its fastest model.
     func testConnection(_ id: ProviderID) async {
+        if let provider = registry.current[id], case .signedInApp = provider.descriptor.traits.credential {
+            await loadModels(for: id)
+            guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
+            let probe = GenerationRequest(model: "haiku", instructions: "Reply with the word OK and nothing else.", input: "OK",
+                                          options: GenerationOptions(timeout: .seconds(45)))
+            do {
+                _ = try await provider.generate(probe)
+                rows[index].connection = .ok(models: rows[index].models.count)
+            } catch {
+                rows[index].connection = .failed(ProviderError.normalize(error, provider: id).code)
+            }
+            return
+        }
         await loadModels(for: id, force: true)
         guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
         rows[index].connection = rows[index].modelsFailure.map(Connection.failed) ?? .ok(models: rows[index].models.count)

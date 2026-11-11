@@ -8,6 +8,10 @@ import RewriteKit
 enum ProviderStatus: Equatable, Sendable {
     case available(provider: String)
     case needsKey(provider: String)
+    /// The provider drives an app that is not installed, or not signed in.
+    case needsApp(provider: String)
+    /// No account is signed in to the provider's plan.
+    case needsSignIn(provider: String)
     case appleIntelligenceOff
     /// The Mac cannot run it, or the build lacks the framework.
     case notSupported(provider: String)
@@ -34,6 +38,9 @@ enum ProviderStatus: Equatable, Sendable {
         case .unavailable(.appleIntelligenceDisabled): return .appleIntelligenceOff
         case .unavailable(.modelNotReady): return .preparing(provider: name)
         case .unavailable(.deviceNotEligible), .unavailable(.unsupportedPlatform): return .notSupported(provider: name)
+        case .unavailable(.appNotInstalled): return .needsApp(provider: name)
+        case .unavailable(.notSignedIn): return .needsSignIn(provider: name)
+        case .unavailable(.planNotEligible): return .notSupported(provider: name)
         }
     }
 
@@ -41,6 +48,8 @@ enum ProviderStatus: Equatable, Sendable {
         switch self {
         case .available(let provider): String(localized: "menu.status.available \(provider)", bundle: .localized)
         case .needsKey(let provider): String(localized: "menu.status.needsKey \(provider)", bundle: .localized)
+        case .needsApp(let provider): String(localized: "menu.status.needsApp \(provider)", bundle: .localized)
+        case .needsSignIn(let provider): String(localized: "menu.status.needsSignIn \(provider)", bundle: .localized)
         case .appleIntelligenceOff: String(localized: "menu.status.appleIntelligenceOff", bundle: .localized)
         case .notSupported(let provider): String(localized: "menu.status.notSupported \(provider)", bundle: .localized)
         case .preparing(let provider): String(localized: "menu.status.preparing \(provider)", bundle: .localized)

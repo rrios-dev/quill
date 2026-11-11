@@ -831,6 +831,357 @@
       ],
       "release" : false,
       "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : false,
+      "date" : "2026-11-11T12:45:00Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "google\/gemini-3.8-flash",
+      "judge" : "openrouter:anthropic\/claude-sonnet-5.5",
+      "label" : "translate-gate-1",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "model" : "openrouter:google\/gemini-3.8-flash",
+      "profile" : "translate",
+      "promptHash" : "6c00a899d6c65523aff87713ea23fbea2009fabbdb850374b0c29ee8e88ea8d9",
+      "reasons" : [
+        "judge: unusable(\"not a JSON object\")"
+      ],
+      "release" : false,
+      "verdict" : "void"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:05:29Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.875,
+        "meanSimilarity" : 0.9679032258064515,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+        "hard checks 88 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:07:11Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.875,
+        "meanSimilarity" : 0.9662608060832105,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "friends",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "reasons" : [
+        "hard checks 88 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:07:50Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:10:52Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 5
+        },
+        "judgeMean" : 5,
+        "meanSimilarity" : 0.8869470340413325,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:13:16Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.958333333333333,
+          "meaning" : 4.833333333333333,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.75
+        },
+        "judgeMean" : 4.885416666666667,
+        "meanSimilarity" : 0.8168719017107091,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:16:17Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.833333333333333
+        },
+        "judgeMean" : 4.958333333333333,
+        "meanSimilarity" : 0.8591108501297869,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (unconfirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:17:35Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.875,
+        "meanSimilarity" : 0.9679032258064515,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "spelling",
+      "promptHash" : "573bc8df4eb06520bcf8fe784ca8dd9d64b01ffd41c6791a7447804bca043b13",
+      "reasons" : [
+        "hard checks 88 %",
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:19:16Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9583333333333334,
+        "meanSimilarity" : 0.9906539351851852,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "friends",
+      "promptHash" : "86d10a46be7cb4bdbd59bf40b076178edd12c5754c54c890a871ff2cad6c8eb9",
+      "reasons" : [
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:19:53Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "meanSimilarity" : 1,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "dictation",
+      "promptHash" : "ee4b47721a0c4d48af554a4cb2849edc6782954d4e60382c7bbb3c2c5d2f019d",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:23:34Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 5
+        },
+        "judgeMean" : 5,
+        "meanSimilarity" : 0.8939255595892593,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "work",
+      "promptHash" : "7d32778df4e478b80cbc7df0b2a0818763b8b92f745c2f020ca5d9e360c35999",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:26:22Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : false,
+        "hardPassRate" : 0.9583333333333334,
+        "judgeDimensionMeans" : {
+          "fluency" : 4.916666666666667,
+          "meaning" : 4.791666666666667,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.583333333333333
+        },
+        "judgeMean" : 4.822916666666667,
+        "meanSimilarity" : 0.777784289926175,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "concise",
+      "promptHash" : "e9083ed8538c3448f82ad0459def190f6dcd0624508083f6b7b6834889a70704",
+      "reasons" : [
+        "a critical case failed a repeat"
+      ],
+      "release" : false,
+      "verdict" : "not ready"
+    },
+    {
+      "counted" : true,
+      "date" : "2026-11-11T17:29:46Z",
+      "evaluationVersion" : 2,
+      "gateVersion" : 2,
+      "identity" : "sonnet",
+      "judge" : "openrouter:google\/gemini-3.8-flash",
+      "label" : "gate",
+      "lockHash" : "e1527658010a6e442653b9f5da0affc32cb4f57e77bdbe5fa4fe08dbf52c6fed",
+      "metrics" : {
+        "criticalAllPassed" : true,
+        "hardPassRate" : 1,
+        "judgeDimensionMeans" : {
+          "fluency" : 5,
+          "meaning" : 5,
+          "nothingAdded" : 5,
+          "profileMatch" : 4.833333333333333
+        },
+        "judgeMean" : 4.958333333333333,
+        "meanSimilarity" : 0.8648787654572746,
+        "runs" : 24
+      },
+      "model" : "claude-code:sonnet",
+      "profile" : "formal",
+      "promptHash" : "25e2b7b387729dce0aa56067f003619b2233cfd8b7e89c8f99fdc0b6dc02ae7b",
+      "reasons" : [
+
+      ],
+      "release" : false,
+      "verdict" : "ready (confirmed)"
     }
   ]
 }

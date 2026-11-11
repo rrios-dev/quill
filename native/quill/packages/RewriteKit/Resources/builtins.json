@@ -246,6 +246,74 @@
       }
     },
     {
+      "id": "translate",
+      "names": {
+        "es": "Al inglés",
+        "en": "To Spanish"
+      },
+      "symbol": "globe",
+      "settings": {
+        "scope": "rewrite",
+        "register": "keep",
+        "tone": "keep",
+        "length": "keep",
+        "abbreviations": "expand",
+        "interjections": "keep",
+        "emoji": "keep",
+        "preserve": [
+          "names",
+          "numbers",
+          "links",
+          "lineBreaks"
+        ],
+        "targetLanguage": "en",
+        "lengthBand": {
+          "minimum": 0.6,
+          "maximum": 1.6
+        }
+      },
+      "targetLanguages": {
+        "es": "en",
+        "en": "es"
+      },
+      "guidance": {
+        "es": "Traduce al inglés como lo escribiría una persona nativa, con el mismo tono y registro: el sentido de cada frase, no palabra por palabra, y cada modismo por su equivalente. Deja igual nombres, marcas, términos técnicos, código, enlaces y cifras. Si ya está en inglés, corrige solo los errores. No resumas ni añadas saludos o explicaciones.",
+        "en": "Translate into Spanish as a native speaker from Spain would write it, in the same tone and register: the meaning of each sentence, not word for word, and each idiom by its equivalent. Keep names, brands, technical terms, code, links and figures. If it is already Spanish, fix only the errors. Do not summarise or add greetings or explanations."
+      },
+      "examples": [
+        {
+          "input": "oye, ¿te viene bien que movamos la demo al jueves? el cliente no llega el miércoles y prefiero no hacerla a medias",
+          "output": "Hey, would Thursday work for the demo instead? The client can't make it on Wednesday and I'd rather not do it halfway."
+        },
+        {
+          "input": "Le adjunto el contrato firmado. Si necesita cualquier cambio en la cláusula 4, dígamelo y lo revisamos.",
+          "output": "Please find the signed contract attached. If you need any change to clause 4, let me know and we will review it."
+        }
+      ],
+      "localizedExamples": {
+        "es": [
+          {
+            "input": "oye, ¿te viene bien que movamos la demo al jueves? el cliente no llega el miércoles y prefiero no hacerla a medias",
+            "output": "Hey, would Thursday work for the demo instead? The client can't make it on Wednesday and I'd rather not do it halfway."
+          },
+          {
+            "input": "Le adjunto el contrato firmado. Si necesita cualquier cambio en la cláusula 4, dígamelo y lo revisamos.",
+            "output": "Please find the signed contract attached. If you need any change to clause 4, let me know and we will review it."
+          }
+        ],
+        "en": [
+          {
+            "input": "can we push the release to monday? QA found two blockers and I'd rather not ship it half-baked",
+            "output": "¿Podemos pasar la release al lunes? QA ha encontrado dos bloqueantes y prefiero no sacarla a medias."
+          },
+          {
+            "input": "Please find attached the signed contract. Let me know if you need any changes to clause 4.",
+            "output": "Le adjunto el contrato firmado. Dígame si necesita algún cambio en la cláusula 4."
+          }
+        ]
+      }
+    },
+    {
       "id": "synthesis",
       "names": {
         "es": "Sintetizar",

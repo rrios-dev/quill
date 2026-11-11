@@ -65,6 +65,12 @@ struct ProvidersPane: View {
                 model.choose(selection)
             }
         }
+        .alert(PickerCopy.string("providers.account.welcome.title"), isPresented: Binding(
+            get: { model.showsPlanWelcome }, set: { model.showsPlanWelcome = $0 })) {
+            Button(PickerCopy.string("providers.account.welcome.ok")) { model.showsPlanWelcome = false }
+        } message: {
+            Text(PickerCopy.string("providers.account.welcome.body"))
+        }
         .alert(PickerCopy.string("providers.notice.title"), isPresented: Binding(
             get: { model.notice != nil }, set: { if !$0 { model.declineNotice() } })) {
             Button(PickerCopy.string("providers.notice.accept")) { model.acceptNotice() }
@@ -124,6 +130,7 @@ private struct ProviderRow: View {
             VStack(alignment: .leading, spacing: Metrics.Spacing.regular) {
                 tradeoffs
                 if row.needsKey { keyField }
+                if row.account != nil { accountControls }
                 connection
                 models
                 if row.isCustom {
@@ -157,11 +164,15 @@ private struct ProviderRow: View {
         case "openrouter": return PickerCopy.string("providers.summary.openrouter")
         case "vercel-ai-gateway": return PickerCopy.string("providers.summary.vercel")
         case "openai": return PickerCopy.string("providers.summary.openai")
+        case "claude-code": return PickerCopy.string("providers.summary.claudeCode")
+        case "chatgpt-plan": return PickerCopy.string("providers.summary.chatgptPlan")
         default: return ""
         }
     }
 
     private var status: StatusBadge.Status {
+        if model.signingIn == row.id { return .idle(PickerCopy.string("providers.status.signingIn")) }
+        if row.account == .signedOut { return .idle(PickerCopy.string("providers.status.signedOut")) }
         if case .unavailable? = row.availability, let entry = model.status(of: row) { return .problem(entry.text) }
         if row.needsKey, !row.hasKey { return .idle(PickerCopy.string("providers.status.noKey")) }
         switch row.connection {
@@ -199,8 +210,38 @@ private struct ProviderRow: View {
         }
     }
 
+    /// Sign in with ChatGPT: the button the guidelines name, the account in use, sign-out.
+    @ViewBuilder private var accountControls: some View {
+        VStack(alignment: .leading, spacing: Metrics.Spacing.snug) {
+            if model.signingIn == row.id {
+                HStack(spacing: Metrics.Spacing.snug) {
+                    ProgressView().controlSize(.small)
+                    Text(PickerCopy.string("providers.account.waiting")).font(.callout).foregroundStyle(.secondary)
+                    Button(PickerCopy.string("picker.action.cancel")) { model.cancelSignIn() }
+                }
+            } else if case .signedIn(let email)? = row.account {
+                HStack(spacing: Metrics.Spacing.snug) {
+                    Text(email.map { PickerCopy.string("providers.account.signedInAs \($0)") }
+                         ?? PickerCopy.string("providers.account.signedIn"))
+                        .font(.callout)
+                    Spacer(minLength: Metrics.Spacing.snug)
+                    Link(PickerCopy.string("providers.account.usage"), destination: ChatGPTPlan.usageSettingsURL)
+                    Button(PickerCopy.string("providers.account.signOut"), role: .destructive) {
+                        Task { await model.signOut(row.id) }
+                    }
+                }
+            } else {
+                Button(PickerCopy.string("providers.account.continue")) { Task { await model.signIn(row.id) } }
+                    .disabled(model.signingIn != nil)
+            }
+            if let message = model.accountMessage {
+                Text(message.text).font(.callout).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     @ViewBuilder private var connection: some View {
-        if !row.needsKey || row.hasKey {
+        if (!row.needsKey || row.hasKey) && row.account != .signedOut {
             HStack(spacing: Metrics.Spacing.snug) {
                 Button(PickerCopy.string("providers.test")) { Task { await model.testConnection(row.id) } }
                 if case .ok(let count)? = row.connection {

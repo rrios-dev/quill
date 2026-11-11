@@ -758,7 +758,8 @@ final class MeetingFlowModel {
         do {
             let outcome = try await Synthesizer(provider: provider, model: selection.model, contextTokens: context ?? nil)
                 .synthesize(transcript: record.transcript.rendered(), focus: focus, participants: participants,
-                            outputLanguage: readerLanguage)
+                            outputLanguage: readerLanguage, user: record.transcript.names["me"] ?? store.ownName(),
+                            userVoice: record.transcript.names["me"] ?? "Yo")
             let synthesis = SynthesisRecord(
                 focusID: focus.id, focusName: focus.name,
                 model: "\(selection.provider.rawValue):\(selection.model.rawValue)",

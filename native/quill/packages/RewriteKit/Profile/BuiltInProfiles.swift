@@ -2,13 +2,14 @@ import Foundation
 
 /// The shipped profiles' ids, persisted in `Profile.builtIn` (PRODUCT §5).
 public enum BuiltInProfile: String, Codable, CaseIterable, Sendable {
-    case spelling, work, formal, friends, dictation, concise, synthesis
+    case spelling, work, formal, friends, dictation, concise, translate, synthesis
 
     /// The built-ins the app installs: those the bench confirmed ready on at least one
     /// hosted model (BENCH §1.1, the shipping rule). The others are still defined and
     /// measured — the bench runs every case — but the app does not seed, restore or list
-    /// them until they pass. Synthesize did not pass its gate on 2026-10-05 (README).
-    public static let shipped: [BuiltInProfile] = allCases.filter { $0 != .synthesis }
+    /// them until they pass. Synthesize did not pass its gate on 2026-10-05 (README);
+    /// Translate waits for its first gate (J-21).
+    public static let shipped: [BuiltInProfile] = allCases.filter { $0 != .synthesis && $0 != .translate }
 
     public var isShipped: Bool { Self.shipped.contains(self) }
 }
@@ -33,6 +34,12 @@ public enum BuiltInProfiles {
         /// Per language; the profile gets the one of the language it is created in.
         let guidance: [String: String]?
         let examples: [ShippedExample]
+        /// A profile that translates aims at the other language of its reader: the target
+        /// per language it is created in ("es" → "en"), overriding `settings`.
+        let targetLanguages: [String: String]?
+        /// Examples per language, for a profile whose examples only make sense in one
+        /// direction (Translate); `examples` stays the default and the bench's list.
+        let localizedExamples: [String: [ShippedExample]]?
     }
 
     struct ShippedExample: Decodable {
@@ -50,13 +57,18 @@ public enum BuiltInProfiles {
         _ id: BuiltInProfile, language: String, now: Date = Date()
     ) throws -> Profile {
         guard let entry = try entries()[id] else { throw RewriteResources.LoadError.missing("builtins.\(id.rawValue)") }
+        var settings = entry.settings
+        if let targets = entry.targetLanguages {
+            settings.targetLanguage = targets[language] ?? targets["en"]
+        }
+        let examples = entry.localizedExamples.flatMap { $0[language] ?? $0["en"] } ?? entry.examples
         let profile = Profile(
             name: entry.names[language] ?? entry.names["en"] ?? id.rawValue,
             symbol: entry.symbol,
             builtIn: id,
-            settings: entry.settings,
+            settings: settings,
             guidance: entry.guidance?[language] ?? entry.guidance?["en"] ?? "",
-            examples: entry.examples.map { Example(input: $0.input, output: $0.output, addedAt: now) },
+            examples: examples.map { Example(input: $0.input, output: $0.output, addedAt: now) },
             updatedAt: now)
         try profile.validate()
         return profile
@@ -73,7 +85,8 @@ public enum BuiltInProfiles {
     /// shipped examples and guidance do not count.
     public static func hasUserAuthoredText(_ profile: Profile) -> Bool {
         let entry = profile.builtIn.flatMap { try? entries()[$0] }
-        let shippedPairs = Set((entry?.examples ?? []).map { "\($0.input)\u{0}\($0.output)" })
+        let shipped = (entry?.examples ?? []) + (entry?.localizedExamples?.values.flatMap { $0 } ?? [])
+        let shippedPairs = Set(shipped.map { "\($0.input)\u{0}\($0.output)" })
         if profile.examples.contains(where: { !shippedPairs.contains("\($0.input)\u{0}\($0.output)") }) { return true }
         let guidance = profile.guidance.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !guidance.isEmpty else { return false }

@@ -170,6 +170,30 @@ struct GateTests {
         #expect(output.contains("not ready"))
     }
 
+    @Test("a dry gate run prints its estimate and makes no request, log entry or sealed file")
+    func dryRunSpendsNothing() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.passDevelopment(try sandbox.runner(Self.provider()))
+        let requests = LinesBox()
+        let table = Dictionary(uniqueKeysWithValues: Self.pairs)
+        let counting = FakeBenchProvider(id: "apple.on-device", onDevice: true) { request, _ in
+            requests.append(request.input)
+            return .text(table[request.input] ?? request.input, .stop, nil)
+        }
+        let runner = try sandbox.runner(counting)
+        let printed = LinesBox()
+        var options = GateOptions(profiles: [.spelling], models: [Self.device])
+        options.label = "dry"
+        options.dryRun = true
+        let report = try await runner.gate(options, log: { printed.append($0) })
+
+        #expect(requests.lines.isEmpty, "a dry run sends nothing to a model")
+        #expect(report.entries.isEmpty && report.cost == 0)
+        #expect(GateLog.load(runner.gateLogURL).entries.isEmpty, "a dry run is not a look at the holdout")
+        #expect(!FileManager.default.fileExists(atPath: sandbox.paths.sealed.appendingPathComponent("dry.json").path))
+        #expect(printed.lines.contains { $0.hasPrefix("dry run:") })
+    }
+
     @Test("ready needs two consecutive passing runs on the same prompt hash")
     func confirmation() async throws {
         let sandbox = try Sandbox()

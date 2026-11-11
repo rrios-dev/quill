@@ -172,7 +172,11 @@ struct OnboardingView: View {
                     ForEach(Array((row.advantages + row.drawbacks).enumerated()), id: \.offset) { _, tradeoff in
                         Text("· " + Presentation.tradeoff(tradeoff).text).font(.caption)
                     }
-                    if !row.hasKey {
+                    if row.usesLocalApp {
+                        localAppControls(row)
+                    } else if row.account != nil {
+                        accountControls(row)
+                    } else if !row.hasKey {
                         HStack {
                             SecureField(PickerCopy.string("providers.key.enter"), text: Binding(
                                 get: { keys[row.id] ?? "" }, set: { keys[row.id] = $0 }))
@@ -201,6 +205,44 @@ struct OnboardingView: View {
                 }
             }
             Button(PickerCopy.string("onboarding.provider.later")) { model.next() }
+        }
+    }
+
+    /// Claude Code: no key and no sign-in in Quill; the app on this Mac carries the plan.
+    @ViewBuilder private func localAppControls(_ row: ProvidersPaneModel.Row) -> some View {
+        if row.availability?.isAvailable == true {
+            Button(PickerCopy.string("onboarding.provider.useClaudePlan")) {
+                Task {
+                    await model.providers.useLocalApp(row.id)
+                    if model.providers.notice == nil { model.next() }
+                }
+            }
+        } else {
+            Text(PickerCopy.string("onboarding.provider.claudeMissing")).font(.callout).foregroundStyle(.secondary)
+            Link(PickerCopy.string("onboarding.provider.claudeInstall"), destination: URL(string: "https://code.claude.com/docs/en/setup")!)
+                .font(.callout)
+        }
+    }
+
+    /// ChatGPT: sign in in the browser, then pick a model.
+    @ViewBuilder private func accountControls(_ row: ProvidersPaneModel.Row) -> some View {
+        if model.providers.signingIn == row.id {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text(PickerCopy.string("providers.account.waiting")).font(.callout).foregroundStyle(.secondary)
+                Button(PickerCopy.string("picker.action.cancel")) { model.providers.cancelSignIn() }
+            }
+        } else if case .signedIn? = row.account {
+            ForEach(row.models.prefix(8)) { descriptor in
+                Button(descriptor.displayName) { model.providers.choose(ModelSelection(provider: row.id, model: descriptor.id)) }
+                    .buttonStyle(.link)
+            }
+        } else {
+            Button(PickerCopy.string("providers.account.continue")) { Task { await model.providers.signIn(row.id) } }
+                .disabled(model.providers.signingIn != nil)
+        }
+        if let message = model.providers.accountMessage {
+            Text(message.text).font(.callout).foregroundStyle(.secondary)
         }
     }
 

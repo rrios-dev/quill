@@ -213,6 +213,10 @@ struct GateOptions: Sendable {
     var label = "gate"
     var release = false
     var gateFile = "gate-v1.json"
+    /// Plan and print the estimate only: no request, no gate-log entry, no sealed file.
+    /// Before 2026-11-11 `gate` ignored `--dry-run`, so a dry run was a real one, and its
+    /// per-run budget voided it after spending (J-22).
+    var dryRun = false
 }
 
 /// One gate run's committed record: verdicts only.
@@ -306,6 +310,18 @@ extension BenchRunner {
         runOptions.label = options.label
         let plan: Plan
         do { plan = try await makeGatePlan(runOptions, cases: holdout, infos: infos) } catch { throw .bench(error) }
+        if options.dryRun {
+            log(String(format: "dry run: %d calls, estimate $%.4f, upper bound $%.4f", plan.calls, plan.estimate, plan.upperBound))
+            if plan.hosted {
+                let total = options.totalBudget ?? ApprovedBudget.load(paths.budget).total
+                let spent = Ledger.load(paths.ledger).total
+                if spent + plan.upperBound > total {
+                    log(String(format: "a real run would be refused: upper bound $%.4f with $%.4f spent of $%.4f",
+                               plan.upperBound, spent, total))
+                }
+            }
+            return GateReport(label: options.label, date: Date(), entries: [], cost: 0)
+        }
         if plan.hosted {
             guard let budget = options.budget else { throw .bench(.noBudget) }
             if plan.estimate > budget { throw .bench(.estimateOverBudget(estimate: plan.estimate, budget: budget)) }

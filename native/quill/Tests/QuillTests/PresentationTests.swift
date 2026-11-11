@@ -17,10 +17,12 @@ struct PresentationTests {
 
     static let reasons: [UnavailableReason] = [
         .missingCredential, .deviceNotEligible, .appleIntelligenceDisabled, .modelNotReady, .unsupportedPlatform,
+        .appNotInstalled, .notSignedIn, .planNotEligible,
     ]
     static func listed(_ reason: UnavailableReason) {
         switch reason {
-        case .missingCredential, .deviceNotEligible, .appleIntelligenceDisabled, .modelNotReady, .unsupportedPlatform: break
+        case .missingCredential, .deviceNotEligible, .appleIntelligenceDisabled, .modelNotReady, .unsupportedPlatform,
+             .appNotInstalled, .notSignedIn, .planNotEligible: break
         }
     }
 
@@ -79,14 +81,16 @@ struct PresentationTests {
         .free, .staysOnDevice, .worksOffline, .noAccountNeeded, .unlimitedUse, .manyModels, .singleRecipient,
         .strongModels, .paidPerUse, .textLeavesDevice(recipients: recipients), .requiresNetwork, .requiresAPIKey,
         .smallContext(tokens: 4_096), .smallModel, .requiresAppleIntelligence, .limitedLanguages, .mayRefuseContent,
-        .dataPolicyVariesByModel, .singleVendorCatalog, .localServerMayForward,
+        .dataPolicyVariesByModel, .singleVendorCatalog, .localServerMayForward, .includedInPlan, .countsTowardPlanLimits,
+        .requiresSignedInApp("Claude Code"), .requiresAccountSignIn("ChatGPT"),
     ]
     static func listed(_ tradeoff: Tradeoff) {
         switch tradeoff {
         case .free, .staysOnDevice, .worksOffline, .noAccountNeeded, .unlimitedUse, .manyModels, .singleRecipient,
              .strongModels, .paidPerUse, .textLeavesDevice, .requiresNetwork, .requiresAPIKey, .smallContext, .smallModel,
              .requiresAppleIntelligence, .limitedLanguages, .mayRefuseContent, .dataPolicyVariesByModel,
-             .singleVendorCatalog, .localServerMayForward: break
+             .singleVendorCatalog, .localServerMayForward, .includedInPlan, .countsTowardPlanLimits,
+             .requiresSignedInApp, .requiresAccountSignIn: break
         }
     }
 

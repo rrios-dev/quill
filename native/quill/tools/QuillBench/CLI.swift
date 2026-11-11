@@ -13,6 +13,9 @@ struct LiveBenchEnvironment: BenchEnvironment {
         case "apple.on-device": AppleOnDeviceProvider()
         case "openai": ChatCompletionsProvider.openAI(credentials: credentials)
         case "vercel-ai-gateway": ChatCompletionsProvider.vercelAIGateway(credentials: credentials)
+        // The user's own Claude Code, on their plan (quill J-23). `QUILL_BENCH_EFFORT`
+        // measures an `--effort` level before the app adopts it.
+        case "claude-code": ClaudeCodeProvider(effort: ProcessInfo.processInfo.environment["QUILL_BENCH_EFFORT"])
         default: ChatCompletionsProvider.openRouter(credentials: credentials)
         }
     }
@@ -206,8 +209,10 @@ enum QuillBenchCLI {
         options.label = args.value("label") ?? "gate"
         options.release = args.flags.contains("release")
         options.gateFile = args.value("gate-file") ?? latestGateFile(paths: paths)
+        options.dryRun = args.flags.contains("dry-run")
         let runner = try makeRunner(paths: paths, environment: environment, gateFile: options.gateFile)
         let report = try await runner.gate(options)
+        if options.dryRun { return 0 }
         let url = try saveGate(report, paths: paths)
         print("verdicts: \(url.path) (per-case failures are sealed for the owner)")
         return 0
@@ -413,7 +418,7 @@ enum QuillBenchCLI {
       burst             --model apple.on-device:system [--calls 30]
       compare           <label> <label>
       keys              set|remove <provider>
-      gate              holdout cases: --profiles --models [--judge p:m] [--repeat 3] --budget USD [--release]
+      gate              holdout cases: --profiles --models [--judge p:m] [--repeat 3] --budget USD [--release] [--dry-run]
       baseline          <label>
       export-readiness  regenerate readiness.json
       check-references  re-check holdout references; park failing ones (ids only)

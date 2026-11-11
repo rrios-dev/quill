@@ -98,4 +98,10 @@ public enum UnavailableReason: Sendable, Hashable {
     case modelNotReady
     /// Built without the framework the provider needs.
     case unsupportedPlatform
+    /// The local app the provider drives is not installed.
+    case appNotInstalled
+    /// The local app is installed but not signed in to the user's plan, or no account is.
+    case notSignedIn
+    /// The account cannot use its plan in other apps (its plan, workspace or region).
+    case planNotEligible
 }

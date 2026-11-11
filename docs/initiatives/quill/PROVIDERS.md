@@ -132,6 +132,68 @@ a drawback note saying that privacy depends on what the local server does
 Recommended model ids are **not** in the contract: catalogues change monthly,
 and choosing what to recommend is a product decision the app passes in.
 
+### The user's own plans (J-23)
+
+**Claude Code** (`claude-code`, `ClaudeCodeProvider`) — runs the user's own,
+unmodified `claude` in print mode, so generations draw on the Claude plan they
+already pay for. Decided in `docs/studies/quill-claude-subscription/` (J-23);
+Anthropic's terms allow a user signing in to the unmodified binary with their own
+plan, and forbid an app from handling that sign-in, so Quill never ships, patches or
+signs in to the tool and never reads a credential.
+
+| | |
+|---|---|
+| Traits | remote, recipient `Anthropic`; cost `includedInPlan` (→ "included in your plan" and "uses your plan's limits"); credential `signedInApp("Claude Code")` |
+| Seam | `ProcessRunner` (production `FoundationProcessRunner`), as `HTTPTransport` is for remote providers; tests use a scripted runner |
+| Invocation | `-p --output-format stream-json --verbose --include-partial-messages --tools "" --strict-mcp-config --setting-sources "" --settings {"disableAllHooks":true} --no-session-persistence --model <alias> --system-prompt <instructions + examples>`; the user's text on standard input, never an argument |
+| Environment | the app's, minus `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and the Bedrock/Vertex/Foundry switches; plus `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` (measured: 1–2 s instead of 4–6 s per short call, study E3) and the tool's folder and Homebrew on `PATH` |
+| Models | the aliases `sonnet`, `opus`, `haiku`, which follow the latest model of each family |
+| Availability | only whether the executable is found (`ClaudeCodeLocator`: the native installer, Homebrew, npm, bun, volta). The session is not checked: `claude auth status` reads local state and says "logged in" for a revoked session (cognee K-444e0aa3) |
+
+Errors come from the final `result` line (`is_error`, `api_error_status`) and the
+`rate_limit_event` before it: not signed in, 401 and 403 → `unavailable(.notSignedIn)`;
+the plan's limit (`status: rejected`, or 429) → `rateLimited(retryAfter:)` until its
+`resetsAt`; 400 and 404 → `invalidRequest`; 413 → `contextExceeded`; 5xx → `server`; a
+launch failure → `unavailable(.appNotInstalled)`. If the `init` line reports any
+`apiKeySource` other than `none`, the call is stopped before any text is read: the
+provider promises the plan, never an API key.
+
+Claude models get a provider-side note (`ClaudeCodeProvider.plainTextNote` and
+`lineBreakRule`): plain text, nothing added, write once, fix accents in names, keep
+hedges, the input's line breaks as a count (study R4). Readiness labels key on the
+profile's prompt hash, which does not include it, so changing the note means running
+the gate again. Gate of 2026-11-11 (J-25): Sonnet works well on Work, Formal and
+Clean up dictation; Concise, Spelling only and Friends are not ready.
+
+Never `--bare`: bare mode reads no OAuth session, and Claude Code's docs say it
+will become the default for `-p`. When that release comes, every call fails with
+`notSignedIn` and the app falls back visibly (S3), not silently.
+
+**ChatGPT** (`chatgpt-plan`, `ChatGPTPlanProvider`) — OpenAI's Sign in with ChatGPT
+for open-source apps, read 2026-11-11
+(https://developers.openai.com/siwc/token-sharing-open-source). Not `codex exec`:
+OpenAI keeps its CLI's sign-in for trusted scripts and offers this flow for apps.
+
+| | |
+|---|---|
+| Traits | remote, recipient `OpenAI`; cost `includedInPlan`; credential `accountSignIn("ChatGPT")` |
+| Sign-in | `ChatGPTSignIn`: first time `client_id=dynamic_agent_client` with `agent_name_hint` and this Mac's `ext_agent_host_id` (`urn:uuid:…`, kept across sign-outs); later, the issued `oaiapp_…` client with `id_token_hint`. PKCE S256, state and nonce per attempt; callback on `http://127.0.0.1:<port>/auth/callback` (`LoopbackCallbackServer`, 1455 when free). No client secret |
+| Validation | the ID token's RS256 signature against the published key set (Security framework), issuer, audience = the issued client, expiry, nonce; then the `chatgpt.tokens.use.direct` scope, without which the account is kept but cannot generate |
+| Storage | one JSON record in the Keychain under `chatgpt-plan` (`ChatGPTAccountStore`), the host id under `chatgpt-plan.host` |
+| Session | `ChatGPTSession` (an actor) refreshes 5 min before the hour's expiry, one refresh at a time because each rotates the refresh token; a terminal refresh error clears the tokens and asks to sign in again |
+| Inference | `POST /v1/responses` with `store: false`, `stream: true`, `instructions`, examples as turns; no `temperature` or `max_output_tokens` (preview limits). A 401 is retried once after a refresh |
+| Errors | `subscription_sharing_usage_limit_exceeded` → `rateLimited`; `…user_not_eligible` and other 403 → `unavailable(.planNotEligible)`; `…invalid_user` and 401 → `notSignedIn`; `…usage_unavailable`, `…user_unavailable`, 5xx → `server`; `…unsupported_capability`, route and scope errors → `invalidRequest` |
+| Sign-out | revokes the refresh token at the discovery document's `revocation_endpoint`, then clears; an unconfirmed revocation is said |
+
+OpenAI's UI guidelines are followed: the button reads "Continue with ChatGPT", a
+one-time "You're using your ChatGPT plan" welcome, and a "Manage usage" link to
+ChatGPT's settings.
+
+**When a plan cannot serve** (`PlanFallback`, app): a rewrite on a plan provider that
+fails with `notSignedIn`, `appNotInstalled`, `planNotEligible` or `rateLimited`
+names another available model — the global one, a recommended hosted one, then the
+Mac's — and Return tries it once. Quill never switches on its own.
+
 ## 5. Adding a provider
 
 - **Speaks Chat Completions?** Add a preset in `ChatCompletionsPresets.swift`:
@@ -146,8 +208,10 @@ and choosing what to recommend is a product decision the app passes in.
   contract changes.
 
 Candidates already identified: OpenAI's **Responses** API (recommended by OpenAI
-for new work; Chat Completions remains supported with no shutdown date) and
-Anthropic's Messages API, each as its own adapter.
+for new work; Chat Completions remains supported with no shutdown date; also the
+API behind Sign in with ChatGPT, J-23) and Anthropic's Messages API, each as its
+own adapter. A provider that drives a local tool instead of an API (Claude Code)
+builds on `ProcessRunner` the way remote ones build on `HTTPTransport`.
 
 ## 6. Why not Apple's own provider protocol
 

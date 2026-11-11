@@ -270,6 +270,9 @@ public struct OutputGuards: Sendable {
 
     // MARK: G3 — preserved categories
 
+    /// Titles before a name, folded; a translation changes them ("Sr." → "Mr.").
+    static let courtesyTitles: Set<String> = ["sr", "sra", "srta", "dr", "dra", "don", "dona", "mr", "mrs", "ms", "miss"]
+
     func preserved(_ text: String, input: String, context: Context, language: String?) -> [GuardFlag] {
         var flags: [GuardFlag] = []
         let preserve = context.settings.preserve
@@ -297,8 +300,11 @@ public struct OutputGuards: Sendable {
         }
         if preserve.contains(.names) {
             let removable = context.settings.interjections == .remove ? interjections : []
-            let outputWords = Set(TextNormalizer.folded(text, abbreviations: nil))
-            let missing = Facts.names(in: input, excluding: removable).filter { name in
+            // An English possessive keeps the name ("Iker's" is Iker), and a courtesy title
+            // is translated, not kept ("Sr." becomes "Mr."): neither drops a name.
+            let possessive = text.replacingOccurrences(of: #"(?<=\p{L})['’]s\b"#, with: "", options: .regularExpression)
+            let outputWords = Set(TextNormalizer.folded(possessive, abbreviations: nil))
+            let missing = Facts.names(in: input, excluding: removable.union(Self.courtesyTitles)).filter { name in
                 !outputWords.contains(name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil))
             }
             if !missing.isEmpty { flags.append(.missingPreserved(.names, missing)) }

@@ -46,6 +46,7 @@ final class AppEnvironment {
 
         do {
             try profiles.seedIfEmpty(language: language)
+            try profiles.refreshUntouchedBuiltIns(language: language)
         } catch {
             log.error("could not seed the built-in profiles: \(error)")
         }
@@ -56,6 +57,10 @@ final class AppEnvironment {
                                  transport: any HTTPTransport = URLSessionTransport()) -> [any ModelProvider] {
         [
             AppleOnDeviceProvider(),
+            // The user's own plans (J-23): no key, no charge per use.
+            ClaudeCodeProvider(recommended: recommendedModels["claude-code"] ?? []),
+            ChatGPTPlanProvider(session: ChatGPTSession(credentials: credentials, transport: transport), transport: transport,
+                                recommended: recommendedModels["chatgpt-plan"] ?? []),
             ChatCompletionsProvider.openRouter(credentials: credentials, transport: transport,
                                                recommended: recommendedModels["openrouter"] ?? [], appTitle: QuillSupport.productName),
             ChatCompletionsProvider.vercelAIGateway(credentials: credentials, transport: transport,
@@ -74,6 +79,8 @@ final class AppEnvironment {
         "openrouter": ["google/gemini-3.8-flash", "openai/gpt-6-luna"],
         "vercel-ai-gateway": ["google/gemini-3.8-flash", "openai/gpt-6-luna"],
         "openai": ["gpt-6-luna"],
+        // Works well on Work, Formal and Clean up dictation (J-25 gate, 2026-11-11).
+        "claude-code": ["sonnet"],
     ]
 
     /// Built-ins are named in the user's first preferred language Quill ships in.

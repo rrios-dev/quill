@@ -181,7 +181,7 @@ let package = Package(
         // excluded so SwiftPM raises no warning for it.
         .executableTarget(
             name: "QuillBench",
-            dependencies: ["RewriteKit", "ModelKit", "QuillSupport", "SynthesisKit"],
+            dependencies: ["RewriteKit", "ModelKit", "QuillSupport", "SynthesisKit", "MeetingKit"],
             path: "tools/QuillBench",
             exclude: ["data"],
             swiftSettings: [.swiftLanguageMode(.v6)]

@@ -399,6 +399,32 @@ struct ProfileStoreTests {
         #expect(try store.profile(work.id)?.guidance == "Mine")
         #expect(try store.all().profiles.count == BuiltInProfile.shipped.count)
     }
+
+    @Test("a built-in the user never edited follows the shipped text; an edited one is left alone")
+    func untouchedBuiltInsFollowTheShippedText() throws {
+        let folder = try TemporaryDirectory()
+        let store = ProfileStore(dataDirectory: folder.url)
+        try store.seedIfEmpty(language: "es")
+        let all = try store.all().profiles
+        let formal = try #require(all.first { $0.builtIn == .formal })
+        var work = try #require(all.first { $0.builtIn == .work })
+        #expect(try store.refreshUntouchedBuiltIns(language: "es").isEmpty)
+
+        // An older shipped guidance, as a profile seeded before a tuning holds it.
+        let file = folder.url.appendingPathComponent("profiles/\(formal.id.uuidString)/current.json")
+        var json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        json["guidance"] = "Una guía anterior."
+        try JSONSerialization.data(withJSONObject: json).write(to: file)
+        work.guidance = "Mine"
+        work = try store.save(work)
+
+        let refreshed = try store.refreshUntouchedBuiltIns(language: "es")
+        #expect(refreshed.map(\.id) == [formal.id])
+        let shipped = try BuiltInProfiles.make(.formal, language: "es")
+        #expect(try store.profile(formal.id)?.guidance == shipped.guidance)
+        #expect(try store.profile(formal.id)?.version == 1)
+        #expect(try store.profile(work.id)?.guidance == "Mine")
+    }
 }
 
 @Suite("Reset Quill")
