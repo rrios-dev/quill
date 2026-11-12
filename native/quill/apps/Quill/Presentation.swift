@@ -77,6 +77,20 @@ enum Presentation {
         }
     }
 
+    // MARK: Claude Code's account
+
+    /// What the user's Claude Code account lacks, and the action that fixes it; nil when ready.
+    static func claudeCodeAccount(_ account: ClaudeCodeAccount) -> Entry? {
+        switch account {
+        case .ready: nil
+        case .notInstalled: Entry(key: "claudeCode.account.notInstalled")
+        case .signedOut: Entry(key: "claudeCode.account.signedOut")
+        case .consoleAccount: Entry(key: "claudeCode.account.console")
+        case .noPlan: Entry(key: "claudeCode.account.noPlan")
+        case .unknown: Entry(key: "claudeCode.account.unknown")
+        }
+    }
+
     // MARK: Engine states
 
     /// A line per generation state — what VoiceOver hears and what the picker says when

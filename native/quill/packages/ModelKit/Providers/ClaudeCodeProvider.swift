@@ -60,9 +60,10 @@ public struct ClaudeCodeProvider: ModelProvider {
 
     /// Claude Code's aliases, which always name the latest model of each family.
     public func models() async throws -> [ModelDescriptor] {
-        let all = [("sonnet", "Claude Sonnet"), ("opus", "Claude Opus"), ("haiku", "Claude Haiku")].map { id, name in
+        // Opus is the strongest, Sonnet the middle, Haiku the lightest (the owner's grades).
+        let all = [("sonnet", "Claude Sonnet", 4), ("opus", "Claude Opus", 5), ("haiku", "Claude Haiku", 3)].map { id, name, grade in
             ModelDescriptor(id: ModelID(rawValue: id), displayName: name, contextTokens: Self.contextTokens,
-                            isRecommended: recommended.contains(ModelID(rawValue: id)), vendor: "anthropic")
+                            isRecommended: recommended.contains(ModelID(rawValue: id)), vendor: "anthropic", grade: grade)
         }
         return all.filter(\.isRecommended) + all.filter { !$0.isRecommended }
     }
@@ -395,5 +396,60 @@ public enum ClaudeCodeLocator {
             .map { $0.hasPrefix("~/") ? home + $0.dropFirst() : $0 }
             .first(where: isExecutable)
             .map { URL(filePath: $0) }
+    }
+}
+
+// MARK: - The user's Claude Code account
+
+/// Whether the user's Claude Code can serve Quill on a Claude plan, and if not, why — so the
+/// app can say the exact reason and offer the one step that fixes it.
+public enum ClaudeCodeAccount: Equatable, Sendable {
+    case notInstalled
+    case signedOut
+    /// Signed in with an Anthropic Console account, which bills an API key; Quill refuses it.
+    case consoleAccount
+    /// Signed in with a Claude account without a plan that includes Claude Code.
+    case noPlan
+    /// Signed in on a plan ("pro", "max", "team"…).
+    case ready(plan: String)
+    /// The status could not be read.
+    case unknown
+
+    /// `claude auth status --json`'s answer. It reads local state only, so a revoked session
+    /// still reads as signed in (cognee K-444e0aa3): a failed call is the final word.
+    static func parse(_ json: Data) -> ClaudeCodeAccount {
+        guard let object = try? JSONSerialization.jsonObject(with: json) as? [String: Any] else { return .unknown }
+        guard object["loggedIn"] as? Bool == true else { return .signedOut }
+        guard (object["authMethod"] as? String) == "claude.ai" else { return .consoleAccount }
+        guard let plan = object["subscriptionType"] as? String, !plan.isEmpty, plan != "free" else { return .noPlan }
+        return .ready(plan: plan)
+    }
+}
+
+extension ClaudeCodeProvider {
+    /// Reads the account the user's Claude Code is signed in with. Local and quick; makes no
+    /// model call.
+    public func account() async -> ClaudeCodeAccount {
+        guard let executable = locate() else { return .notInstalled }
+        let invocation = ProcessInvocation(
+            executable: executable, arguments: ["auth", "status", "--json"],
+            environment: Self.childEnvironment(environment, executable: executable,
+                                               request: GenerationRequest(model: "", instructions: "", input: "")),
+            workingDirectory: FileManager.default.temporaryDirectory, standardInput: Data())
+        var output = ""
+        do {
+            for try await line in runner.lines(invocation) { output += line + "\n" }
+        } catch let failure as ProcessFailure where failure.status != nil {
+            // `auth status` exits non-zero when signed out, after printing its JSON.
+        } catch {
+            return .unknown
+        }
+        return ClaudeCodeAccount.parse(Data(output.utf8))
+    }
+
+    /// The command that signs the user in on their Claude plan, in Anthropic's own flow: the
+    /// user runs it in Terminal and Quill never sees the sign-in (Anthropic's terms, J-23).
+    public func signInCommand() -> String? {
+        locate().map { "\"\($0.path)\" auth login --claudeai" }
     }
 }

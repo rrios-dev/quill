@@ -210,7 +210,7 @@ struct OnboardingView: View {
 
     /// Claude Code: no key and no sign-in in Quill; the app on this Mac carries the plan.
     @ViewBuilder private func localAppControls(_ row: ProvidersPaneModel.Row) -> some View {
-        if row.availability?.isAvailable == true {
+        if case .ready? = row.localAccount {
             Button(PickerCopy.string("onboarding.provider.useClaudePlan")) {
                 Task {
                     await model.providers.useLocalApp(row.id)
@@ -218,9 +218,7 @@ struct OnboardingView: View {
                 }
             }
         } else {
-            Text(PickerCopy.string("onboarding.provider.claudeMissing")).font(.callout).foregroundStyle(.secondary)
-            Link(PickerCopy.string("onboarding.provider.claudeInstall"), destination: URL(string: "https://code.claude.com/docs/en/setup")!)
-                .font(.callout)
+            ClaudeCodeAccountControls(model: model.providers, row: row)
         }
     }
 

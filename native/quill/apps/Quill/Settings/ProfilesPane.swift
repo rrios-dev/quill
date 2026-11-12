@@ -97,7 +97,9 @@ struct ProfilesPane: View {
                         }
                     }
                 }
-                LabeledContent(PickerCopy.string("profiles.readiness")) { ReadinessBadge(label: readiness) }
+                if ReadinessBadge.isShown(readiness) {
+                    LabeledContent(PickerCopy.string("profiles.readiness")) { ReadinessBadge(label: readiness) }
+                }
             }
             Section(PickerCopy.string("profiles.settings")) {
                 Picker(PickerCopy.string("profiles.scope"), selection: binding(\.settings.scope)) {

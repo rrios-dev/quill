@@ -234,6 +234,31 @@ struct ClaudeCodeProviderTests {
         #expect(!prompt.contains(ClaudeCodeProvider.plainTextNote))
     }
 
+    @Test("the account says exactly what is missing", arguments: [
+        (#"{"loggedIn":true,"authMethod":"claude.ai","subscriptionType":"max"}"#, ClaudeCodeAccount.ready(plan: "max")),
+        (#"{"loggedIn":false}"#, .signedOut),
+        (#"{"loggedIn":true,"authMethod":"console"}"#, .consoleAccount),
+        (#"{"loggedIn":true,"authMethod":"claude.ai","subscriptionType":null}"#, .noPlan),
+        (#"{"loggedIn":true,"authMethod":"claude.ai","subscriptionType":"free"}"#, .noPlan),
+        ("not json", .unknown),
+    ])
+    func account(_ json: String, _ expected: ClaudeCodeAccount) {
+        #expect(ClaudeCodeAccount.parse(Data(json.utf8)) == expected)
+    }
+
+    @Test("the account is read from the user's own tool, and a signed-out exit still parses")
+    func accountFromTool() async {
+        let signedOut = ScriptedProcessRunner(.lines([#"{"loggedIn": false}"#], status: 1))
+        #expect(await provider(signedOut).account() == .signedOut)
+        #expect(signedOut.invocations.first?.arguments == ["auth", "status", "--json"])
+        #expect(await provider(ScriptedProcessRunner(.hang), installed: false).account() == .notInstalled)
+    }
+
+    @Test("signing in runs the user's own tool on their Claude plan, never Console")
+    func signInCommand() {
+        #expect(provider(ScriptedProcessRunner(.hang)).signInCommand() == "\"/Users/someone/.local/bin/claude\" auth login --claudeai")
+    }
+
     @Test("the line-break rule names the input's own count")
     func lineBreaks() {
         #expect(ClaudeCodeProvider.lineBreakRule(for: "one paragraph").contains("no line breaks"))
@@ -247,6 +272,8 @@ struct ClaudeCodeProviderTests {
         let models = try await provider.models()
         #expect(models.map(\.id) == ["haiku", "sonnet", "opus"])
         #expect(models.allSatisfy { $0.vendor == "anthropic" })
+        let grades = Dictionary(uniqueKeysWithValues: models.map { ($0.id, $0.grade) })
+        #expect(grades == ["opus": 5, "sonnet": 4, "haiku": 3], "Opus the best, Sonnet the middle, Haiku the lightest")
     }
 
     @Test("the locator expands the home folder and keeps the first executable candidate")

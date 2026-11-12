@@ -14,9 +14,13 @@ public struct ModelDescriptor: Sendable, Hashable, Identifiable {
     /// Who made the model — `anthropic` for `anthropic/claude-…` — when known. The
     /// bench uses it to refuse a judge from the graded model's own vendor.
     public var vendor: String?
+    /// The provider's own grade for the model, 1 (lightest) to 5 (best), when it gives one:
+    /// shown as stars beside the model (the owner's request, 2026-11-12).
+    public var grade: Int?
 
     public init(id: ModelID, displayName: String? = nil, contextTokens: Int? = nil, isRecommended: Bool = false,
-                pricing: ModelPricing? = nil, vendor: String? = nil) {
+                pricing: ModelPricing? = nil, vendor: String? = nil, grade: Int? = nil) {
+        self.grade = grade.map { min(5, max(1, $0)) }
         self.id = id
         self.displayName = displayName ?? id.rawValue
         self.contextTokens = contextTokens

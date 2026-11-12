@@ -218,6 +218,7 @@
 "providers.server.requiresKey" = "Necesita clave de API";
 "providers.server.rule" = "https, o http sin cifrar a este Mac o a un nombre .local de tu red.";
 "providers.server.saveProblem" = "No se pudo guardar el servidor.";
+"providers.grade %lld" = "Nota: %lld de 5";
 "providers.test" = "Probar conexión";
 "providers.global.title" = "Modelo para reescribir";
 "providers.global.footer" = "Lo usan los perfiles que no tienen uno propio y las instrucciones que escribes en el selector.";
@@ -426,6 +427,17 @@
 "onboarding.provider.useClaudePlan" = "Usar mi plan de Claude";
 "onboarding.provider.claudeMissing" = "No encuentro Claude Code en este Mac. Instálalo, inicia sesión con tu plan y vuelve a este paso.";
 "onboarding.provider.claudeInstall" = "Cómo instalar Claude Code";
+"claudeCode.account.notInstalled" = "No encuentro Claude Code en este Mac. Instálalo y vuelve aquí.";
+"claudeCode.account.signedOut" = "Claude Code no tiene la sesión iniciada.";
+"claudeCode.account.console" = "Claude Code tiene abierta una cuenta de Console, que paga por uso. Quill necesita tu cuenta de Claude.";
+"claudeCode.account.noPlan" = "Tu cuenta de Claude no tiene un plan que incluya Claude Code (Pro o Max).";
+"claudeCode.account.unknown" = "No he podido leer la cuenta de Claude Code.";
+"claudeCode.account.expired" = "La sesión de Claude Code ha caducado.";
+"claudeCode.account.plans" = "Ver los planes";
+"claudeCode.signIn.button" = "Iniciar sesión en Claude Code";
+"claudeCode.signIn.waiting" = "Termina de iniciar sesión en la ventana de Terminal. Quill lo comprobará solo.";
+"claudeCode.signIn.terminal.intro" = "Quill: inicia sesión en Claude Code con tu cuenta de Claude (plan Pro o Max).";
+"claudeCode.signIn.terminal.done" = "Listo. Puedes cerrar esta ventana y volver a Quill.";
 "onboarding.provider.later" = "Configurar más tarde";
 "onboarding.shortcut.title" = "Tu atajo";
 "onboarding.practice.title" = "Pruébalo";

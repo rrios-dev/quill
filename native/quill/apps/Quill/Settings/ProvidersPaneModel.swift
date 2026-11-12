@@ -29,6 +29,8 @@ final class ProvidersPaneModel {
         var account: AccountState?
         /// A provider that drives an app on this Mac (Claude Code): no key, no sign-in here.
         var usesLocalApp = false
+        /// That app's account, read from it: why it cannot serve, when it cannot.
+        var localAccount: ClaudeCodeAccount?
     }
 
     enum AccountState: Equatable {
@@ -115,6 +117,7 @@ final class ProvidersPaneModel {
                 account = saved.map { $0.canUsePlan && !$0.accessToken.isEmpty } == true
                     ? .signedIn(email: saved?.email) : .signedOut
             }
+            let localAccount = await (provider as? ClaudeCodeProvider)?.account()
             rows.append(Row(
                 id: descriptor.id, name: descriptor.displayName, isCustom: servers[descriptor.id] != nil,
                 isRemote: remote, recipients: recipients, advantages: descriptor.advantages,
@@ -123,7 +126,8 @@ final class ProvidersPaneModel {
                 models: cache.cached(descriptor.id)?.models.map(\.descriptor) ?? previous?.models ?? [],
                 modelsFailure: previous?.modelsFailure, connection: previous?.connection,
                 address: servers[descriptor.id]?.baseURL, account: account,
-                usesLocalApp: { if case .signedInApp = descriptor.traits.credential { true } else { false } }()))
+                usesLocalApp: { if case .signedInApp = descriptor.traits.credential { true } else { false } }(),
+                localAccount: localAccount))
         }
         self.rows = rows
         // The on-device model and a signed-in app (Claude Code, whose models are its
@@ -262,6 +266,23 @@ final class ProvidersPaneModel {
         guard let row = rows.first(where: { $0.id == id }),
               let model = row.models.first(where: \.isRecommended) ?? row.models.first else { return }
         choose(ModelSelection(provider: id, model: model.id))
+    }
+
+    /// The provider whose app sign-in (Terminal) Quill is waiting on.
+    private(set) var signingInLocally: ProviderID?
+
+    /// "Sign in to Claude Code": Terminal with the user's own sign-in, then a wait for the
+    /// plan, then the connection test — the user only finishes the sign-in.
+    func signInLocally(_ id: ProviderID) async {
+        guard signingInLocally == nil, let provider = registry.current[id] as? ClaudeCodeProvider,
+              let command = provider.signInCommand(),
+              ClaudeCodeSignIn.open(command, in: FileManager.default.temporaryDirectory.appending(path: "quill-claude-sign-in"))
+        else { return }
+        signingInLocally = id
+        let account = await ClaudeCodeSignIn.waitForPlan(provider)
+        signingInLocally = nil
+        if let index = rows.firstIndex(where: { $0.id == id }) { rows[index].localAccount = account }
+        if case .ready = account { await testConnection(id) }
     }
 
     func cancelSignIn() {

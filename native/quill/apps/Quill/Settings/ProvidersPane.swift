@@ -102,6 +102,7 @@ private struct GlobalModelRow: View {
                     .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: Metrics.Spacing.snug)
+                if let grade = chosen.model.grade { GradeStars(grade: grade) }
                 ReadinessBadge(label: model.readiness(of: chosen.model, provider: chosen.row.id))
             } else {
                 Image(systemName: "questionmark.circle").font(.title2).foregroundStyle(.secondary)
@@ -131,6 +132,7 @@ private struct ProviderRow: View {
                 tradeoffs
                 if row.needsKey { keyField }
                 if row.account != nil { accountControls }
+                if row.usesLocalApp { ClaudeCodeAccountControls(model: model, row: row) }
                 connection
                 models
                 if row.isCustom {
@@ -173,6 +175,10 @@ private struct ProviderRow: View {
     private var status: StatusBadge.Status {
         if model.signingIn == row.id { return .idle(PickerCopy.string("providers.status.signingIn")) }
         if row.account == .signedOut { return .idle(PickerCopy.string("providers.status.signedOut")) }
+        if model.signingInLocally == row.id { return .idle(PickerCopy.string("providers.status.signingIn")) }
+        if let account = row.localAccount, account != .unknown, Presentation.claudeCodeAccount(account) != nil {
+            return .idle(PickerCopy.string(account == .notInstalled ? "menu.status.needsApp \(row.name)" : "providers.status.signedOut"))
+        }
         if case .unavailable? = row.availability, let entry = model.status(of: row) { return .problem(entry.text) }
         if row.needsKey, !row.hasKey { return .idle(PickerCopy.string("providers.status.noKey")) }
         switch row.connection {
@@ -323,6 +329,7 @@ private struct ModelRow: View {
                     ModelFacts(model: descriptor).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: Metrics.Spacing.snug)
+                if let grade = descriptor.grade { GradeStars(grade: grade) }
                 ReadinessBadge(label: model.readiness(of: descriptor, provider: provider))
             }
             .padding(.vertical, 5)
@@ -371,7 +378,20 @@ private struct ProviderIcon: View {
 struct ReadinessBadge: View {
     let label: ReadinessLabel
 
-    var body: some View {
+    /// Only good news is shown (the owner, 2026-11-12): "not recommended" and "may need
+    /// review" stay in the bench's data and never discourage a choice here.
+    static func isShown(_ label: ReadinessLabel) -> Bool {
+        switch label {
+        case .worksWell: true
+        case .mayNeedReview, .notRecommended, .notEvaluated, .notEvaluatedEdited: false
+        }
+    }
+
+    @ViewBuilder var body: some View {
+        if Self.isShown(label) { badge }
+    }
+
+    private var badge: some View {
         Text(ReadinessCopy.label(label))
             .font(.caption.weight(.medium))
             .padding(.horizontal, 7)
@@ -388,6 +408,23 @@ struct ReadinessBadge: View {
         case .notRecommended: .orange
         case .notEvaluated, .notEvaluatedEdited: .secondary
         }
+    }
+}
+
+/// A model's grade as stars, from the provider (Claude Opus 5, Sonnet 4, Haiku 3).
+struct GradeStars: View {
+    let grade: Int
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(1...5, id: \.self) { star in
+                Image(systemName: star <= grade ? "star.fill" : "star")
+                    .foregroundStyle(star <= grade ? AnyShapeStyle(.yellow) : AnyShapeStyle(.tertiary))
+            }
+        }
+        .font(.caption2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PickerCopy.string("providers.grade \(grade)"))
     }
 }
 

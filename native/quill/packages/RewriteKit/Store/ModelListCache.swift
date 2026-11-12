@@ -23,6 +23,8 @@ public final class ModelListCache: @unchecked Sendable {
         public var inputPerMillion: Double?
         public var outputPerMillion: Double?
         public var vendor: String?
+        /// Optional, so lists cached before grades decode as they were.
+        public var grade: Int?
 
         public init(_ descriptor: ModelDescriptor) {
             id = descriptor.id.rawValue
@@ -32,6 +34,7 @@ public final class ModelListCache: @unchecked Sendable {
             inputPerMillion = descriptor.pricing?.inputPerMillion
             outputPerMillion = descriptor.pricing?.outputPerMillion
             vendor = descriptor.vendor
+            grade = descriptor.grade
         }
 
         public var descriptor: ModelDescriptor {
@@ -39,7 +42,7 @@ public final class ModelListCache: @unchecked Sendable {
                 outputPerMillion.map { ModelPricing(inputPerMillion: input, outputPerMillion: $0) }
             }
             return ModelDescriptor(id: ModelID(rawValue: id), displayName: displayName, contextTokens: contextTokens,
-                                   isRecommended: isRecommended, pricing: pricing, vendor: vendor)
+                                   isRecommended: isRecommended, pricing: pricing, vendor: vendor, grade: grade)
         }
     }
 
