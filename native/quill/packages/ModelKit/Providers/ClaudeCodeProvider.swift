@@ -133,6 +133,9 @@ public struct ClaudeCodeProvider: ModelProvider {
             prompt += "\n\nExamples of the expected transformation (an input, then the answer to give):\n"
                 + examples.joined(separator: "\n")
         }
+        // Only for an answer that replaces the user's text: a synthesis answers in
+        // Markdown, and its transcript's line breaks are not the answer's.
+        guard request.options.replacesSelection else { return prompt }
         // Last, nearest the text: models follow the closest, most concrete constraint.
         return prompt + "\n\n" + plainTextNote + " " + lineBreakRule(for: request.input)
     }

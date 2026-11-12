@@ -54,4 +54,20 @@ struct MeetingPreferencesTests {
         #expect(listed.contains("batuta") && listed.contains("teams") && listed.contains("zoom"))
         #expect(MeetingPreferences().offerApps.contains("batuta"))
     }
+
+    @Test("with only Claude Code connected, the synthesis moves off OpenRouter onto the plan")
+    func usableModelPrefersConnected() {
+        #expect(SynthesisModelChoice.usable(preferring: .fidelity, available: [.onDevice, .plan]) == .plan)
+        #expect(SynthesisModelChoice.usable(preferring: .economy, available: Set(SynthesisModelChoice.allCases)) == .economy)
+        #expect(SynthesisModelChoice.usable(preferring: .fidelity, available: []) == .fidelity)
+    }
+
+    @Test("the plan choice runs Claude Code's Sonnet and round-trips through the saved preference")
+    func planChoice() {
+        var preferences = MeetingPreferences()
+        let selection = SynthesisModelChoice.plan.selection
+        preferences.model = "\(selection.provider.rawValue):\(selection.model.rawValue)"
+        #expect(preferences.model == "claude-code:sonnet")
+        #expect(SynthesisModelChoice.matching(preferences.modelSelection) == .plan)
+    }
 }

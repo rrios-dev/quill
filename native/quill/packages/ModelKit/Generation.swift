@@ -85,11 +85,17 @@ public struct GenerationOptions: Sendable, Hashable {
     public var maxOutputTokens: Int?
     /// Wall-clock limit for the whole generation.
     public var timeout: Duration
+    /// The answer replaces the user's text as it is (a rewrite). Providers that add
+    /// output rules of their own for that case (Claude Code's plain-text note) add them
+    /// only when this is true; a synthesis, which answers in Markdown, sets it false.
+    public var replacesSelection: Bool
 
-    public init(temperature: Double? = nil, maxOutputTokens: Int? = nil, timeout: Duration = .seconds(60)) {
+    public init(temperature: Double? = nil, maxOutputTokens: Int? = nil, timeout: Duration = .seconds(60),
+                replacesSelection: Bool = true) {
         self.temperature = temperature
         self.maxOutputTokens = maxOutputTokens
         self.timeout = timeout
+        self.replacesSelection = replacesSelection
     }
 }
 

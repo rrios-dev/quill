@@ -218,6 +218,13 @@ struct ClaudeCodeProviderTests {
         #expect(!prompt.contains("helo hw r u"))
     }
 
+    @Test("an answer that does not replace the selection gets no plain-text rules")
+    func synthesisPrompt() {
+        var synthesis = request()
+        synthesis.options.replacesSelection = false
+        #expect(ClaudeCodeProvider.systemPrompt(for: synthesis) == "Fix spelling.")
+    }
+
     @Test("the line-break rule names the input's own count")
     func lineBreaks() {
         #expect(ClaudeCodeProvider.lineBreakRule(for: "one paragraph").contains("no line breaks"))

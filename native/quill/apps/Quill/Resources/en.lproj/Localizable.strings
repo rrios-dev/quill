@@ -633,13 +633,15 @@
 "synthesis.model" = "Model";
 "synthesis.model.onDevice" = "On this Mac";
 "synthesis.model.draft" = "draft";
+"synthesis.model.plan" = "included in your plan";
 "synthesis.consent %@" = "The transcript will be sent to %@ to synthesise it. It is the first time this provider receives text from Quill.";
 "synthesis.consent.cancel" = "Cancel";
 "synthesis.consent.send" = "Send";
 "synthesis.running" = "Synthesising…";
 "synthesis.truncated" = "The model ran out of room and the synthesis is incomplete. Try again or pick another model.";
 "synthesis.draftNote" = "Draft from this Mac’s model: check owners and dates before using it.";
-"synthesis.error.provider" = "That model is not available: check its key in Settings › Providers & models.";
+"synthesis.error.provider" = "That model is not connected: pick another or connect it in Settings › Providers & models.";
+"synthesis.error.limit" = "You reached your plan’s or the provider’s limit. Try again later or pick another model.";
 "synthesis.error.failed" = "The synthesis failed. Try again.";
 "synthesis.copy" = "Copy";
 "synthesis.run" = "Synthesise";

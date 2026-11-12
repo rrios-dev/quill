@@ -89,13 +89,15 @@ struct MeetingPreferences: Codable, Equatable {
 }
 
 /// The models offered for synthesis, with what S3 measured about each (MEETINGS.md §4).
+/// `plan` runs the user's own Claude Code on the Claude plan they pay for (J-23).
 enum SynthesisModelChoice: CaseIterable, Identifiable {
-    case fidelity, economy, onDevice
+    case plan, fidelity, economy, onDevice
 
     var id: Self { self }
 
     var selection: ModelSelection {
         switch self {
+        case .plan: ModelSelection(provider: ClaudeCodeProvider.providerID, model: "sonnet")
         case .fidelity: ModelSelection(provider: "openrouter", model: "anthropic/claude-sonnet-5.5")
         case .economy: ModelSelection(provider: "openrouter", model: "openai/gpt-6-luna")
         case .onDevice: ModelSelection(provider: AppleOnDeviceProvider.providerID, model: "system")
@@ -104,6 +106,7 @@ enum SynthesisModelChoice: CaseIterable, Identifiable {
 
     var name: String {
         switch self {
+        case .plan: "Claude Sonnet (Claude Code)"
         case .fidelity: "Claude Sonnet 5.5"
         case .economy: "GPT-6 Luna"
         case .onDevice: MeetingCopy.t("synthesis.model.onDevice")
@@ -113,6 +116,7 @@ enum SynthesisModelChoice: CaseIterable, Identifiable {
     /// Measured on a six-minute meeting (S3); scales with length.
     var costHint: String {
         switch self {
+        case .plan: MeetingCopy.t("synthesis.model.plan")
         case .fidelity: "≈ " + 0.02.formatted(.currency(code: "USD").precision(.significantDigits(1)))
         case .economy: "≈ " + 0.001.formatted(.currency(code: "USD").precision(.significantDigits(1)))
         case .onDevice: MeetingCopy.t("synthesis.model.draft")
@@ -123,6 +127,13 @@ enum SynthesisModelChoice: CaseIterable, Identifiable {
 
     static func matching(_ selection: ModelSelection) -> SynthesisModelChoice? {
         allCases.first { $0.selection == selection }
+    }
+
+    /// `preferred` when its provider can be used now, else the first choice that can:
+    /// a user with only Claude Code connected must not be left on an OpenRouter model
+    /// that fails at call time. On-device is last, the draft of last resort.
+    static func usable(preferring preferred: SynthesisModelChoice, available: Set<SynthesisModelChoice>) -> SynthesisModelChoice {
+        available.contains(preferred) ? preferred : allCases.first(where: available.contains) ?? preferred
     }
 }
 

@@ -88,7 +88,8 @@ public struct Synthesizer: Sendable {
             model: model,
             instructions: instructions,
             input: input,
-            options: GenerationOptions(temperature: 0.2, maxOutputTokens: maxOutputTokens, timeout: .seconds(180))
+            options: GenerationOptions(temperature: 0.2, maxOutputTokens: maxOutputTokens, timeout: .seconds(180),
+                                       replacesSelection: false)
         ))
     }
 

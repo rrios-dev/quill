@@ -172,6 +172,20 @@ final class MeetingFlowModel {
         reload()
         showLatestResult()
         Task { await translateTranscript() }
+        Task { await chooseUsableModel() }
+    }
+
+    /// Moves off a model whose provider is not connected (no key, Claude Code missing).
+    private func chooseUsableModel() async {
+        let registry = coordinator.environment.registry.current
+        var available: Set<SynthesisModelChoice> = []
+        for choice in SynthesisModelChoice.allCases {
+            if let provider = try? registry.provider(for: choice.selection), await provider.availability().isAvailable {
+                available.insert(choice)
+            }
+        }
+        let usable = SynthesisModelChoice.usable(preferring: modelChoice, available: available)
+        if usable != modelChoice { modelChoice = usable }
     }
 
     func translation(of turn: Turn) -> String? {
@@ -726,11 +740,18 @@ final class MeetingFlowModel {
         // A name still being typed counts: the synthesis must use it.
         commitPeople()
         error = nil
+        // An agent's synthesis opens no window, so the move off an unconnected model
+        // cannot wait for the one started in init.
+        await chooseUsableModel()
         let selection = modelChoice.selection
         let provider: any ModelProvider
         do {
             provider = try coordinator.environment.registry.current.provider(for: selection)
         } catch {
+            self.error = MeetingCopy.t("synthesis.error.provider")
+            return
+        }
+        guard await provider.availability().isAvailable else {
             self.error = MeetingCopy.t("synthesis.error.provider")
             return
         }
@@ -773,7 +794,11 @@ final class MeetingFlowModel {
             coordinator.countUsage(QuillUsage.provider(selection.provider.rawValue), 1)
         } catch {
             log.error("synthesis failed: \(error)")
-            self.error = MeetingCopy.t("synthesis.error.failed")
+            self.error = switch (error as? ProviderError)?.code {
+            case .unavailable?, .authentication?: MeetingCopy.t("synthesis.error.provider")
+            case .rateLimited?: MeetingCopy.t("synthesis.error.limit")
+            default: MeetingCopy.t("synthesis.error.failed")
+            }
         }
     }
 

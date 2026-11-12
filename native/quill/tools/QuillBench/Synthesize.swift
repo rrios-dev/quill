@@ -52,8 +52,11 @@ extension QuillBenchCLI {
             context = try? await provider.models().first(where: { $0.id == spec.model })?.contextTokens
         }
 
-        let pricing = try PriceTable.load(paths.prices).pricing(for: spec)
-        if !spec.isOnDevice {
+        // A plan the user already pays for costs nothing per call (BenchRunner.info).
+        let onPlan = provider.descriptor.traits.cost == .includedInPlan
+        let pricing = onPlan ? ModelPricing(inputPerMillion: 0, outputPerMillion: 0)
+            : try PriceTable.load(paths.prices).pricing(for: spec)
+        if !spec.isOnDevice, !onPlan {
             guard let pricing else {
                 print("refused: \(spec) has no price in prices.json")
                 return 1
