@@ -209,7 +209,9 @@ struct PickerView: View {
                 }
             }
         case .noChanges:
-            resultText(session.capture?.text ?? "").foregroundStyle(.secondary)
+            // A formatted selection shows its formatting, as it stays in place.
+            resultText((session.markupInUse ? session.capture?.markup : nil) ?? session.capture?.text ?? "")
+                .foregroundStyle(.secondary)
         case .truncated(let partial):
             resultText(partial).foregroundStyle(.secondary)
             secondary(PickerCopy.string("picker.truncated"))
@@ -248,10 +250,39 @@ struct PickerView: View {
 
     private func resultText(_ text: String) -> some View {
         ScrollView {
-            Text(text).font(.body).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                if session.markupInUse { Text(Self.formatted(text)) } else { Text(text) }
+            }
+            .font(.body).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxHeight: Self.resultHeight)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// A formatted result (U11) as it will paste: bold, italics and links drawn, list
+    /// items with their bullet or number, line for line.
+    static func formatted(_ markup: String) -> AttributedString {
+        var output = AttributedString()
+        let lines = markup.components(separatedBy: "\n")
+        for (index, raw) in lines.enumerated() {
+            let indent = raw.prefix { $0 == " " }.count
+            var line = String(raw.dropFirst(indent))
+            var prefix = String(repeating: "    ", count: indent / 2)
+            if line.hasPrefix("- ") {
+                prefix += "•  "
+                line.removeFirst(2)
+            } else if let match = line.range(of: #"^\d+\. "#, options: .regularExpression) {
+                prefix += String(line[match])
+                line.removeSubrange(match)
+            }
+            let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            output += AttributedString(prefix)
+            // Apple's parser reads `__x__` as bold; this markup does not, so underscores are literal.
+            let literal = line.replacingOccurrences(of: "_", with: "\\_")
+            output += (try? AttributedString(markdown: literal, options: options)) ?? AttributedString(line)
+            if index < lines.count - 1 { output += AttributedString("\n") }
+        }
+        return output
     }
 
     /// The selection, dimmed, while there is nothing else to show yet.

@@ -138,11 +138,11 @@ final class FakeSelection: SessionSelection {
         return captureResult
     }
     func prepareSnapshot() async { snapshots += 1 }
-    func replace(_ text: String, capture: Capture, pasteAnyway: Bool) async -> ReplaceOutcome {
+    func replace(_ text: String, capture: Capture, pasteAnyway: Bool, markup: Bool) async -> ReplaceOutcome {
         replaced.append((text, pasteAnyway))
         return replaceOutcome
     }
-    func copy(_ text: String) async -> Bool {
+    func copy(_ text: String, markup: Bool) async -> Bool {
         let answer = copyAnswers.isEmpty ? true : copyAnswers.removeFirst()
         if answer { copied.append(text) }
         return answer

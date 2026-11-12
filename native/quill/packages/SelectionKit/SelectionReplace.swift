@@ -60,9 +60,11 @@ public struct SelectionReplacer: Sendable {
     ///   - orderOut: orders the picker out — not alpha-hidden: a hidden panel keeps key
     ///     status and swallows ⌘V.
     public func replace<C: Clock>(
-        _ result: String, capture: Capture, pasteAnyway: Bool = false,
+        _ result: String, capture: Capture, pasteAnyway: Bool = false, markup: Bool = false,
         snapshot: PasteboardSnapshotter.Outcome?, orderOut: @Sendable () async -> Void, clock: C
     ) async -> ReplaceOutcome where C.Duration == Duration {
+        // A formatted result (U11) is pasted as rich text, and checked by its plain text.
+        let plain = markup ? RichText.plainText(fromMarkup: result) : result
         let keys = operations.keys
         let pasteboard = operations.pasteboard
         let appStrategy = strategy(capture.app.bundleIdentifier)
@@ -75,7 +77,7 @@ public struct SelectionReplacer: Sendable {
         // Not confirmed editable: copy instead (terminals always; uncertain targets
         // unless the user chose Paste anyway).
         let mayPaste = capture.editability == .editable || (capture.editability == .uncertain && pasteAnyway)
-        guard mayPaste else { return await copy(result, snapshot: snapshot, outcome: .copiedNotEditable) }
+        guard mayPaste else { return await copy(result, markup: markup, snapshot: snapshot, outcome: .copiedNotEditable) }
 
         // 3. Focus returns: the same element, or — Chromium recreates element objects — the
         // same app, which the selection check then decides.
@@ -84,7 +86,7 @@ public struct SelectionReplacer: Sendable {
                focused.element == element { return true }
             return operations.focusedApplicationPID() == capture.app.pid
         }
-        guard focusBack else { return await copy(result, snapshot: snapshot, outcome: .copiedFocusNotReturned) }
+        guard focusBack else { return await copy(result, markup: markup, snapshot: snapshot, outcome: .copiedFocusNotReturned) }
 
         // 4. The selection is what was captured.
         if let element = capture.element, capture.range != nil || capture.method == .accessibility {
@@ -95,14 +97,14 @@ public struct SelectionReplacer: Sendable {
                 now.range.map { $0.location == range.location && $0.length == range.length } ?? false
             } ?? true
             if !(sameText && sameRange) {
-                return await copy(result, snapshot: snapshot, outcome: .copiedSelectionChanged)
+                return await copy(result, markup: markup, snapshot: snapshot, outcome: .copiedSelectionChanged)
             }
         }
 
         // Accessibility-write strategy: no clipboard, and no ⌘Z promise.
         if appStrategy.replaceViaAccessibilityWrite, let element = capture.element {
-            _ = operations.writeSelectedText(result, to: element)
-            return verify(result, element: element) == .verified ? .replaced : .pastedUnconfirmed
+            _ = operations.writeSelectedText(plain, to: element)
+            return verify(plain, element: element) == .verified ? .replaced : .pastedUnconfirmed
         }
 
         // 5. The snapshot: retaken if the clipboard changed since; never written over while
@@ -122,7 +124,7 @@ public struct SelectionReplacer: Sendable {
 
         // 6. Write the result: host-only, marked so clipboard managers skip it.
         let text = pasteAnyway ? Self.trimmingTrailingLineBreaks(result) : result
-        let written = operations.writeTransient(text)
+        let written = markup ? await operations.writeTransient(markup: text) : operations.writeTransient(text)
 
         // 7. Modifiers clear, then ⌘V in the current layout's ⌘ position.
         _ = await operations.waitForModifiersToClear(timeout: Self.modifierWait, clock: clock)
@@ -136,7 +138,9 @@ public struct SelectionReplacer: Sendable {
         var verification = Verification.unverifiable
         if let element = capture.element {
             _ = await Polling.wait(timeout: delay, clock: clock) {
-                verification = verify(text, element: element)
+                // A formatted paste reads back in the host's own way (bullets, numbering): its
+                // first line of plain text is what can be compared.
+                verification = verify(markup ? RichText.verificationFragment(fromMarkup: text) : text, element: element)
                 return verification == .verified
             }
         }
@@ -165,15 +169,23 @@ public struct SelectionReplacer: Sendable {
     /// ⌘C in the picker: copies `result` unless a timed-out snapshot read is still
     /// running, in which case nothing is written and it returns false — the session then
     /// waits for the read (ARCHITECTURE §3.4).
-    public func copyResult(_ result: String, snapshot: PasteboardSnapshotter.Outcome?) async -> Bool {
-        await copy(result, snapshot: snapshot, outcome: .copiedNotEditable) != .clipboardBusy
+    public func copyResult(_ result: String, markup: Bool = false, snapshot: PasteboardSnapshotter.Outcome?) async -> Bool {
+        await copy(result, markup: markup, snapshot: snapshot, outcome: .copiedNotEditable) != .clipboardBusy
     }
 
     /// Copy: the result on the clipboard, kept off Universal Clipboard. Never while a
     /// timed-out snapshot read may still be running.
-    private func copy(_ result: String, snapshot: PasteboardSnapshotter.Outcome?, outcome: ReplaceOutcome) async -> ReplaceOutcome {
+    private func copy(_ result: String, markup: Bool = false, snapshot: PasteboardSnapshotter.Outcome?,
+                      outcome: ReplaceOutcome) async -> ReplaceOutcome {
         if let pending = snapshot?.pendingRead, await Self.finish(pending, within: Self.pendingReadWait) == nil {
             return .clipboardBusy
+        }
+        if markup {
+            // The user's own copy: formatted, without the transient markers a paste carries.
+            let item = await MainActor.run { RichText.transientItem(markup: result) }
+            let kept = item.entries.filter { $0.type != PasteboardMarkers.transient && $0.type != PasteboardMarkers.concealed }
+            operations.pasteboard.write([PasteboardItemData(entries: kept)], hostOnly: true)
+            return outcome
         }
         operations.pasteboard.write([PasteboardItemData(entries: [
             .init(type: "public.utf8-plain-text", data: Data(result.utf8)),

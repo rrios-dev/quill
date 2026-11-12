@@ -43,6 +43,9 @@ public struct Capture: Sendable {
     /// dictation rewrites what was said, and inserts it where the cursor was, over an
     /// empty selection (EFFICIENCY.md E8). Nil means the selection is `text`.
     public var fieldSelection: String?
+    /// The selection's formatting as `RichText` markup, when it had bold, italics, links or
+    /// lists and Quill could read them (PRODUCT U11). Nil for plain text.
+    public var markup: String?
 
     /// Public so the app can build one for the Services entry (the text arrives through
     /// the service, the element through accessibility) and its tests can build fakes.
@@ -173,9 +176,19 @@ public final class SelectionCapturer: @unchecked Sendable {
             if read?.isSecureField == true { return .failure(.passwordField) }
             if let focused, let read, let text = read.text,
                !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return .success(accessibilityCapture(text: text, focused: focused, read: read, app: app,
-                                                     strategy: appStrategy, primaryScreenHeight: primaryScreenHeight,
-                                                     elapsed: start.duration(to: clock.now)))
+                var capture = accessibilityCapture(text: text, focused: focused, read: read, app: app,
+                                                   strategy: appStrategy, primaryScreenHeight: primaryScreenHeight,
+                                                   elapsed: start.duration(to: clock.now))
+                // Accessibility gives the text, not its formatting: a rich selection is also
+                // copied, to read its RTF or HTML (U11). Plain selections pay nothing.
+                if capture.formatting == .rich, !appStrategy.replaceViaAccessibilityWrite,
+                   case .success(let copied) = await copyCapture(app: app, focused: focused, read: read, strategy: appStrategy,
+                                                                hotKeyCode: hotKeyCode, primaryScreenHeight: primaryScreenHeight,
+                                                                clock: clock, start: start) {
+                    capture.markup = copied.markup
+                    capture.elapsed = start.duration(to: clock.now)
+                }
+                return .success(capture)
             }
             // An empty answer is believed after the retry: no ⌘C fallback.
             if focused != nil, Self.answeredEmpty(read) { return .failure(.noSelection) }
@@ -254,15 +267,28 @@ public final class SelectionCapturer: @unchecked Sendable {
             return .failure(.nothingCopied)
         }
         let formatting = Self.pasteboardFormatting(pasteboard)
+        let markup = formatting == .rich ? await Self.pasteboardMarkup(pasteboard) : nil
         PasteboardSnapshotter.restore(saved.snapshot, to: pasteboard, ifChangeCountIs: pasteboard.changeCount())
 
         let editability = editability(read, element: focused?.element, strategy: strategy)
         let bounds = read?.range.flatMap { range in
             focused.flatMap { operations.selectionBounds(of: $0.element, range: range, primaryScreenHeight: primaryScreenHeight) }
         }
-        return .success(Capture(text: text, app: app, element: focused?.element, range: read?.range,
-                                editability: editability,
-                                formatting: formatting, bounds: bounds, method: .copy, elapsed: start.duration(to: clock.now)))
+        var capture = Capture(text: text, app: app, element: focused?.element, range: read?.range,
+                              editability: editability,
+                              formatting: formatting, bounds: bounds, method: .copy, elapsed: start.duration(to: clock.now))
+        capture.markup = markup
+        return .success(capture)
+    }
+
+    /// The markup of what the host copied (RTF first, then HTML), read before the user's
+    /// clipboard is restored.
+    static func pasteboardMarkup(_ pasteboard: any PasteboardClient) async -> String? {
+        let types = pasteboard.itemTypes().first ?? []
+        let rtf = types.contains("public.rtf") ? pasteboard.data(forType: "public.rtf", item: 0) : nil
+        let html = types.contains("public.html") ? pasteboard.data(forType: "public.html", item: 0).flatMap { String(data: $0, encoding: .utf8) } : nil
+        guard rtf != nil || html != nil else { return nil }
+        return await MainActor.run { RichText.markup(rtf: rtf, html: html) }
     }
 
     /// Formatting from what the host copied: RTF or HTML runs; plain when it copied text only.

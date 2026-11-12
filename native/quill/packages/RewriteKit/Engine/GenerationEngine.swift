@@ -67,6 +67,8 @@ public struct GenerationEngine: Sendable {
         public var maxOutputTokens: Int?
         /// A one-off instruction typed in the picker (`PromptComposer.compose`).
         public var instruction: String?
+        /// `input` is `RichText` markup to keep (PRODUCT U11).
+        public var markup = false
 
         public init(profile: Profile, input: String, model: ModelSelection, contextTokens: Int?,
                     runsOnDevice: Bool, formatting: CaptureFormatting = .plain, pinnedExample: Example? = nil,
@@ -133,6 +135,11 @@ public struct GenerationEngine: Sendable {
             estimate: { text in await provider.estimateTokens(GenerationRequest(model: request.model.model, instructions: "", input: text)) })
 
         prompt.request.options.maxOutputTokens = request.maxOutputTokens
+        if request.markup {
+            // Outside the profile's prompt hash: plain inputs keep their readiness labels.
+            prompt.request.instructions += "\n\n" + Self.markupInstructions
+            prompt.request.options.keepsMarkup = true
+        }
 
         // Pre-check: instructions + examples + input, plus room for the answer.
         let promptTokens = await provider.estimateTokens(prompt.request)
@@ -207,6 +214,15 @@ public struct GenerationEngine: Sendable {
     /// The single definition of the too-long suggestion (ARCHITECTURE §4.4): the first
     /// alternative whose context fits, restricted to on-device and local models when the
     /// resolved model runs on this Mac; none when nothing fits.
+    /// How a formatted input reads, and what to keep (U11).
+    static let markupInstructions = """
+        The text carries its formatting as markup: **bold**, *italic*, [text](address), and list \
+        items starting with "- " or "1. ", two spaces of indent per nesting level, one line of \
+        markup per line of text. Keep the markup: the same words stay bold, italic or linked, \
+        every list item stays a list item at its level and in its order, and links keep their \
+        address. Add no markup the text does not have, and do not explain it.
+        """
+
     func suggestion(for request: Request, required: Int) -> ModelSelection? {
         request.alternatives.first { candidate in
             candidate.selection != request.model

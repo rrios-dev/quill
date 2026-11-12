@@ -207,6 +207,12 @@ public struct SelectionOperations: Sendable {
         pasteboard.write([PasteboardMarkers.transientText(text)], hostOnly: true)
     }
 
+    /// A formatted result: RTF, HTML and plain text in one item (U11).
+    public func writeTransient(markup: String) async -> Int {
+        let item = await MainActor.run { RichText.transientItem(markup: markup) }
+        return pasteboard.write([item], hostOnly: true)
+    }
+
     public func paste() async -> Bool { await keys.postCommandShortcut("v") }
 
     // MARK: ⌘C

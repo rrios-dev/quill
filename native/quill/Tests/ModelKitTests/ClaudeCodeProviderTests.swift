@@ -225,6 +225,15 @@ struct ClaudeCodeProviderTests {
         #expect(ClaudeCodeProvider.systemPrompt(for: synthesis) == "Fix spelling.")
     }
 
+    @Test("a formatted input gets the markup note, never the plain-text one")
+    func markupNote() {
+        var request = request()
+        request.options.keepsMarkup = true
+        let prompt = ClaudeCodeProvider.systemPrompt(for: request)
+        #expect(prompt.contains(ClaudeCodeProvider.markupNote))
+        #expect(!prompt.contains(ClaudeCodeProvider.plainTextNote))
+    }
+
     @Test("the line-break rule names the input's own count")
     func lineBreaks() {
         #expect(ClaudeCodeProvider.lineBreakRule(for: "one paragraph").contains("no line breaks"))

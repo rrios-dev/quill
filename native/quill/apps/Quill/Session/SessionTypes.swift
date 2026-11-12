@@ -186,10 +186,11 @@ protocol SessionSelection: AnyObject {
     func capture(app: AppIdentity, hotKeyCode: CGKeyCode?) async -> Result<Capture, CaptureRefusal>
     /// Takes the pasteboard snapshot while the model generates (off the critical path).
     func prepareSnapshot() async
-    func replace(_ text: String, capture: Capture, pasteAnyway: Bool) async -> ReplaceOutcome
+    /// `markup`: `text` is `RichText` markup, pasted as rich text (U11).
+    func replace(_ text: String, capture: Capture, pasteAnyway: Bool, markup: Bool) async -> ReplaceOutcome
     /// Copies `text`, kept off Universal Clipboard. False when a timed-out snapshot read
     /// is still running and nothing may be written.
-    func copy(_ text: String) async -> Bool
+    func copy(_ text: String, markup: Bool) async -> Bool
     /// Returns when the timed-out read has ended.
     func clipboardReadFinished() async
     func strategy(for bundleIdentifier: String?) -> AppStrategy

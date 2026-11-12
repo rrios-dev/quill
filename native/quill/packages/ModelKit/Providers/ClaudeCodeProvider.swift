@@ -137,7 +137,8 @@ public struct ClaudeCodeProvider: ModelProvider {
         // Markdown, and its transcript's line breaks are not the answer's.
         guard request.options.replacesSelection else { return prompt }
         // Last, nearest the text: models follow the closest, most concrete constraint.
-        return prompt + "\n\n" + plainTextNote + " " + lineBreakRule(for: request.input)
+        let note = request.options.keepsMarkup ? markupNote : plainTextNote
+        return prompt + "\n\n" + note + " " + lineBreakRule(for: request.input)
     }
 
     /// Claude Code wraps every call in its own context, and its models lean towards
@@ -158,6 +159,20 @@ public struct ClaudeCodeProvider: ModelProvider {
         word that says how sure or how soon something is (soon, maybe, probably). In a formal \
         register, laughter (jajaja, lol) goes with the other filler, and a tú imperative keeps \
         its verb and pronouns in the usted form (reclámaselas → reclámeselas).
+        """
+
+    /// The note for a formatted input (U11): the same rules, with the text's own markup kept
+    /// instead of plain text. Only formatted inputs get it, so readiness of plain ones holds.
+    static let markupNote = """
+        Your answer replaces the user's selection as it is, so write it once: if you notice a \
+        mistake, never add a correction or a second version — get it right before you write. \
+        Keep the text's markup exactly as the instructions describe, and add no other Markdown: \
+        no headings, and nothing before or after the text — no greeting, sign-off or note. \
+        Keeping names exactly still means fixing their spelling, accents and capitals \
+        (lucia → Lucía). Shortening never drops a word that says how sure or how soon \
+        something is (soon, maybe, probably). In a formal register, laughter (jajaja, lol) \
+        goes with the other filler, and a tú imperative keeps its verb and pronouns in the \
+        usted form (reclámaselas → reclámeselas).
         """
 
     /// The input's line breaks as a count the answer must match: a concrete number holds

@@ -59,6 +59,8 @@ final class RewriteSession {
     private(set) var model: ModelSelection?
     /// Another model to try after the user's own plan could not serve a rewrite (J-23).
     private(set) var fallback: ModelSelection?
+    /// The result is `RichText` markup: shown formatted, pasted as rich text (U11).
+    private(set) var markupInUse = false
     private(set) var capture: Capture?
     /// D toggles it in Ready and Flagged.
     private(set) var showsDiff = false
@@ -367,13 +369,19 @@ final class RewriteSession {
         }
 
         let descriptor = await catalog.descriptor(for: model)
-        let request = GenerationEngine.Request(
-            profile: profile, input: capture.text, model: model,
+        // The selection's formatting goes to the model and back (U11) — not to the Mac's small
+        // model, and not where the result is written through accessibility, as plain text.
+        markupInUse = capture.markup != nil && isRemote(provider.descriptor)
+            && !selection.strategy(for: capture.app.bundleIdentifier).replaceViaAccessibilityWrite
+        var built = GenerationEngine.Request(
+            profile: profile, input: markupInUse ? capture.markup ?? capture.text : capture.text, model: model,
             contextTokens: provider.descriptor.traits.maxContextTokens ?? descriptor?.contextTokens,
             runsOnDevice: !isRemote(provider.descriptor),
-            formatting: Self.formatting(capture.formatting),
+            formatting: markupInUse ? .plain : Self.formatting(capture.formatting),
             alternatives: await catalog.alternatives(),
             instruction: activeInstruction)
+        built.markup = markupInUse
+        let request = built
         let engine = engine
         // Partial text crosses from the engine's context to the main actor in order.
         let (partials, sink) = AsyncStream<String>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -754,13 +762,13 @@ final class RewriteSession {
         }
         // Read-only-only and uncertain targets copy on Return; Paste anyway is ⌥Return.
         if capture.editability == .readOnlyOnly || (capture.editability == .uncertain && !pasteAnyway) {
-            guard await selection.copy(text) else { return await waitForClipboard(text, resume: .ready) }
+            guard await selection.copy(text, markup: markupInUse) else { return await waitForClipboard(text, resume: .ready) }
             return finishApplied(.replace(.copiedNotEditable))
         }
         state = .applying
         let replaceStart = ContinuousClock.now
         let interval = QuillSignposts.signposter.beginInterval(QuillSignposts.replace)
-        let outcome = await selection.replace(text, capture: capture, pasteAnyway: pasteAnyway)
+        let outcome = await selection.replace(text, capture: capture, pasteAnyway: pasteAnyway, markup: markupInUse)
         QuillSignposts.signposter.endInterval(QuillSignposts.replace, interval)
         timings.replace = Self.milliseconds(since: replaceStart)
         if outcome == .clipboardBusy { return await waitForClipboard(text, resume: .ready) }
@@ -782,7 +790,7 @@ final class RewriteSession {
         guard case .applying = state else { return }
         guard let refusal else { return finishApplied(.typed(computer: source.name)) }
         pendingRemoteNotice = refusal
-        if await selection.copy(text) { return finishApplied(.copied) }
+        if await selection.copy(text, markup: markupInUse) { return finishApplied(.copied) }
         // A timed-out clipboard read is still running: the result waits in the picker.
         presentPicker()
         holdKeyboard(true)
@@ -790,7 +798,7 @@ final class RewriteSession {
     }
 
     private func copy(_ text: String, resume: SessionState.Resume) async {
-        guard await selection.copy(text) else { return await waitForClipboard(text, resume: resume) }
+        guard await selection.copy(text, markup: markupInUse) else { return await waitForClipboard(text, resume: resume) }
         finishApplied(.copied)
     }
 

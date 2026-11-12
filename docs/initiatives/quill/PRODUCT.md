@@ -36,7 +36,7 @@ The job: *select, press a key, get the right version in place.*
 | U8 | Pick provider and model, seeing the advantages and drawbacks of each; enter an API key once; add a custom OpenAI-compatible server. | ✅ |
 | U9 | Rewrite a whole document or a text longer than the model's context (chunking). | ⏳ later |
 | U10 | Searchable history of past rewrites. | ⏳ later (opt-in when it ships) |
-| U11 | Preserve rich formatting (bold, lists, links) through a rewrite. | ⏳ later — 1.0 is plain text and flags the loss (§6) |
+| U11 | Preserve rich formatting (bold, lists, links) through a rewrite. | ✅ 1.7.0 (J-26, J-27): kept with hosted models — the selection's RTF/HTML as `RichText` markup, pasted back as RTF + HTML + plain; the Mac's model and accessibility-write apps keep plain text and the flag (§6). Adding formatting in some profiles: next. |
 | U12 | iOS / iPadOS. | ❌ out of scope |
 
 ## 4. Flows
@@ -324,7 +324,9 @@ Each is enforced by a deterministic guard after the model answers
    instead of rewriting the input is flagged.
 7. **No refusal passed off as a rewrite**: a model's "I can't help with that"
    is shown as a refusal, never offered for applying.
-8. **Formatting**: 1.0 replaces with plain text. When the selection carries
+8. **Formatting**: from 1.7.0 a formatted selection keeps its bold, italics, links,
+   lists and line breaks with hosted models (U11). Before that, and still with the
+   Mac's model or an app Quill writes through accessibility: 1.0 replaces with plain text. When the selection carries
    rich formatting, the result is flagged "Formatting will be lost"; when the
    app does not let Quill check, "Formatting couldn't be checked".
 

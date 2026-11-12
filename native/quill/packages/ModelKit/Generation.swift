@@ -89,13 +89,17 @@ public struct GenerationOptions: Sendable, Hashable {
     /// output rules of their own for that case (Claude Code's plain-text note) add them
     /// only when this is true; a synthesis, which answers in Markdown, sets it false.
     public var replacesSelection: Bool
+    /// The input carries formatting markup (`**bold**`, lists…) the answer must keep, so a
+    /// provider that steers its model to plain text does not (PRODUCT U11).
+    public var keepsMarkup: Bool
 
     public init(temperature: Double? = nil, maxOutputTokens: Int? = nil, timeout: Duration = .seconds(60),
-                replacesSelection: Bool = true) {
+                replacesSelection: Bool = true, keepsMarkup: Bool = false) {
         self.temperature = temperature
         self.maxOutputTokens = maxOutputTokens
         self.timeout = timeout
         self.replacesSelection = replacesSelection
+        self.keepsMarkup = keepsMarkup
     }
 }
 

@@ -42,17 +42,17 @@ final class LiveSessionSelection: SessionSelection {
         snapshot = await replacer.takeSnapshot()
     }
 
-    func replace(_ text: String, capture: Capture, pasteAnyway: Bool) async -> ReplaceOutcome {
+    func replace(_ text: String, capture: Capture, pasteAnyway: Bool, markup: Bool) async -> ReplaceOutcome {
         let orderOut = orderOutPicker
         let outcome = await replacer.replace(
-            text, capture: capture, pasteAnyway: pasteAnyway, snapshot: snapshot,
+            text, capture: capture, pasteAnyway: pasteAnyway, markup: markup, snapshot: snapshot,
             orderOut: { await MainActor.run { orderOut() } }, clock: ContinuousClock())
         if outcome != .clipboardBusy { snapshot = nil }
         return outcome
     }
 
-    func copy(_ text: String) async -> Bool {
-        await replacer.copyResult(text, snapshot: snapshot)
+    func copy(_ text: String, markup: Bool) async -> Bool {
+        await replacer.copyResult(text, markup: markup, snapshot: snapshot)
     }
 
     func clipboardReadFinished() async {
