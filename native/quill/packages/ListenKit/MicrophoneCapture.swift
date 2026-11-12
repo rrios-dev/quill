@@ -132,10 +132,22 @@ public final class MicrophoneCapture: @unchecked Sendable {
         engine.inputNode.removeTap(onBus: 0)
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = nil
+        Self.retire(engine)
         let fresh = AVAudioEngine()
         lock.withLock { engine = fresh }
         observeConfiguration()
     }
+
+    /// Keeps a dropped engine alive for a while. Voice processing delivers property
+    /// changes on its own queue after the engine stops; one reaching a freed engine
+    /// crashed Quill on Finish (EXC_BAD_ACCESS in `AVAudioIOUnit::IOUnitPropertyListener`,
+    /// 2026-11-12), and the capture is released right after `stop`.
+    static func retire(_ engine: AVAudioEngine) {
+        nonisolated(unsafe) let kept = engine
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + retirement) { _ = kept }
+    }
+
+    static let retirement: TimeInterval = 10
 
     /// On the capture queue.
     private func observeConfiguration() {
@@ -236,6 +248,7 @@ public final class MicrophoneCapture: @unchecked Sendable {
             observer = nil
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
+            Self.retire(engine)
             defer { devicesListener = nil }
             return devicesListener
         }

@@ -474,6 +474,7 @@
 "meeting.rename" = "Renombrar la reunión";
 "meeting.rename.placeholder" = "Nombre de la reunión";
 "meetings.defaultTitle %@" = "Reunión en %@";
+"meetings.recoveredSuffix" = " (recuperada)";
 "meetings.error.noApp" = "No hay ninguna app de reuniones abierta";
 "meetings.error.noAudio" = "La app de la reunión todavía no está reproduciendo audio";
 "meetings.error.separation" = "No se pudieron separar las voces: la transcripción distingue solo «Yo» y «Los demás»";

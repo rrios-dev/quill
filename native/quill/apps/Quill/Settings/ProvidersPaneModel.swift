@@ -126,9 +126,12 @@ final class ProvidersPaneModel {
                 usesLocalApp: { if case .signedInApp = descriptor.traits.credential { true } else { false } }()))
         }
         self.rows = rows
-        // The on-device model lists itself without the network; a server's list is
-        // fetched only on request (ARCHITECTURE §6).
-        for row in rows where !row.isRemote && !row.isCustom && row.models.isEmpty {
+        // The on-device model and a signed-in app (Claude Code, whose models are its
+        // aliases) list themselves without the network; a server's list is fetched only
+        // on request (ARCHITECTURE §6). Without this, Claude Code's models appeared only
+        // after "Test connection", and no profile could pick them.
+        for row in rows where (!row.isRemote || row.usesLocalApp) && !row.isCustom && row.models.isEmpty
+            && row.availability?.isAvailable == true {
             await loadModels(for: row.id)
         }
         recomputeLabels()

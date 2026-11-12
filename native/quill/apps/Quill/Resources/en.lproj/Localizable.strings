@@ -474,6 +474,7 @@
 "meeting.rename" = "Rename the meeting";
 "meeting.rename.placeholder" = "Meeting name";
 "meetings.defaultTitle %@" = "Meeting on %@";
+"meetings.recoveredSuffix" = " (recovered)";
 "meetings.error.noApp" = "No meeting app is open";
 "meetings.error.noAudio" = "The meeting app is not playing audio yet";
 "meetings.error.separation" = "Voices could not be told apart: the transcript only separates “Me” and “The others”";

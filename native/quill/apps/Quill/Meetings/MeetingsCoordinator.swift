@@ -145,6 +145,15 @@ final class MeetingsCoordinator {
     var directory: URL { store.directory }
 
     func start() {
+        // A meeting a crash left unsaved comes back first, before anything reads the list.
+        do {
+            if let recovered = try store.recoverInProgress(suffix: MeetingCopy.t("meetings.recoveredSuffix")) {
+                log.info("recovered an unsaved meeting of \(Int(recovered.duration)) s")
+                lastFinished = recovered.id
+            }
+        } catch {
+            log.error("could not recover the unsaved meeting: \(error)")
+        }
         do {
             let removed = try store.purge(olderThan: preferences.retentionDays)
             if removed > 0 { log.info("retention removed \(removed) meetings") }
@@ -331,7 +340,40 @@ final class MeetingsCoordinator {
         lastError = nil
         phase = .listening(app)
         if preferences.showsLivePanel { showLivePanel(app: app) }
+        checkpointLoop?.cancel()
+        checkpointLoop = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.checkpointInterval)
+                guard !Task.isCancelled else { return }
+                self?.checkpoint()
+            }
+        }
     }
+
+    /// How often the meeting being recorded is written to disk.
+    static let checkpointInterval: Duration = .seconds(30)
+    private var checkpointLoop: Task<Void, Never>?
+
+    /// Writes the meeting so far, with the names given during it, so a crash loses at
+    /// most the last interval (MeetingStore.saveInProgress).
+    private func checkpoint() {
+        guard let session, case .listening(let app) = phase else { return }
+        var transcript = session.snapshot()
+        guard !transcript.segments.isEmpty else { return }
+        for voice in liveVoices where !voice.name.isEmpty { transcript.names[voice.label] = voice.name }
+        let started = listeningSince ?? Date()
+        let record = MeetingRecord(
+            id: inProgressID, title: String(localized: "meetings.defaultTitle \(app.name)", bundle: .localized),
+            sourceApp: app.name, startedAt: started, duration: Date().timeIntervalSince(started), transcript: transcript)
+        do {
+            try store.saveInProgress(record)
+        } catch {
+            log.error("could not write the meeting in progress: \(error)")
+        }
+    }
+
+    /// The recording's id, so every checkpoint overwrites the same meeting.
+    private var inProgressID = UUID()
 
     private func channelHealthChanged(_ channel: Channel, healthy: Bool) {
         guard case .listening(let app) = phase else { return }
@@ -718,6 +760,10 @@ final class MeetingsCoordinator {
         callEndCheck = nil
         hideLivePanel()
         let started = listeningSince ?? Date()
+        // Written before the audio stops: stopping it is where Quill crashed on 2026-11-12.
+        checkpoint()
+        checkpointLoop?.cancel()
+        checkpointLoop = nil
         phase = .separating
         let captured = session.secondsCaptured
         var transcript = await session.stop()
@@ -808,6 +854,8 @@ final class MeetingsCoordinator {
         }
         do {
             try store.save(record)
+            store.clearInProgress()
+            inProgressID = UUID()
             countUsage("meetings", 1)
             countUsage("meeting_minutes", Int((record.duration / 60).rounded()))
         } catch {
@@ -827,6 +875,10 @@ final class MeetingsCoordinator {
     /// Stops without keeping anything.
     func discard() async {
         guard let session else { return }
+        checkpointLoop?.cancel()
+        checkpointLoop = nil
+        store.clearInProgress()
+        inProgressID = UUID()
         hideLivePanel()
         await stopLiveDiarization()
         liveVoices = []

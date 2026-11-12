@@ -98,6 +98,35 @@ public final class MeetingStore: @unchecked Sendable {
         }
     }
 
+    // MARK: The meeting being recorded
+
+    /// The meeting being recorded, as far as it went: written while listening, so a
+    /// crash or a quit loses at most the last checkpoint, not the whole meeting. Lost on
+    /// 2026-11-12: Quill crashed on Finish and a full meeting, held only in memory, was gone.
+    var inProgressFile: URL { directory.appendingPathComponent("in-progress.json") }
+
+    public func saveInProgress(_ meeting: MeetingRecord) throws {
+        try write(meeting, to: inProgressFile)
+    }
+
+    /// Once the meeting is saved for good, or discarded.
+    public func clearInProgress() {
+        try? fileManager.removeItem(at: inProgressFile)
+    }
+
+    /// A meeting a crash left unsaved becomes a saved meeting, its title marked with
+    /// `suffix`. Nil when there is none; the file is removed only once the meeting is saved.
+    @discardableResult
+    public func recoverInProgress(suffix: String) throws -> MeetingRecord? {
+        guard var meeting = read(MeetingRecord.self, from: inProgressFile) else { return nil }
+        if !meeting.transcript.segments.isEmpty {
+            meeting.title += suffix
+            try save(meeting)
+        }
+        clearInProgress()
+        return meeting.transcript.segments.isEmpty ? nil : meeting
+    }
+
     public func meeting(_ id: UUID) -> MeetingRecord? {
         read(MeetingRecord.self, from: meetingsDirectory.appendingPathComponent("\(id.uuidString).json"))
     }

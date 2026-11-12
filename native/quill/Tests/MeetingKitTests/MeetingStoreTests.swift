@@ -22,6 +22,39 @@ struct MeetingStoreTests {
         )
     }
 
+    @Test("a meeting a crash left unsaved is saved on recovery, marked, and its checkpoint removed")
+    func recoversInProgress() throws {
+        let (store, root) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recording = meeting("Reunión en Microsoft Teams", startedAt: Date(timeIntervalSince1970: 1_000))
+        try store.saveInProgress(recording)
+        try store.saveInProgress(recording)
+        #expect(store.summaries().isEmpty)
+
+        let recovered = try #require(try store.recoverInProgress(suffix: " (recuperada)"))
+        #expect(recovered.id == recording.id)
+        #expect(store.meeting(recording.id)?.title == "Reunión en Microsoft Teams (recuperada)")
+        #expect(store.meeting(recording.id)?.transcript.segments.count == 2)
+        #expect(!FileManager.default.fileExists(atPath: store.inProgressFile.path))
+        #expect(try store.recoverInProgress(suffix: " (recuperada)") == nil)
+    }
+
+    @Test("a finished or discarded meeting leaves no checkpoint; an empty one is not recovered")
+    func clearsInProgress() throws {
+        let (store, root) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try store.saveInProgress(meeting("En curso", startedAt: Date()))
+        store.clearInProgress()
+        #expect(try store.recoverInProgress(suffix: "") == nil)
+
+        var empty = meeting("Vacía", startedAt: Date())
+        empty.transcript.segments = []
+        try store.saveInProgress(empty)
+        #expect(try store.recoverInProgress(suffix: "") == nil)
+        #expect(store.summaries().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: store.inProgressFile.path))
+    }
+
     @Test("a meeting round-trips, owner-only, newest first")
     func roundTrip() throws {
         let (store, root) = try makeStore()

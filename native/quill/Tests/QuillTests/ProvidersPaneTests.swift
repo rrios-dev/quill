@@ -239,4 +239,21 @@ struct ProvidersPaneTests {
         harness.cache.remove("openrouter")
         #expect(harness.cache.cached("openrouter") == nil)
     }
+
+    @Test("Claude Code's models are listed without Test connection, so a profile can pick them")
+    func claudeCodeListedOnRefresh() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ProvidersPaneTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let settings = SettingsStore(dataDirectory: folder)
+        let profiles = ProfileStore(dataDirectory: folder)
+        let credentials = InMemoryCredentialStore()
+        let holder = try ProviderRegistryHolder(
+            shipped: [AppleOnDeviceProvider(), ClaudeCodeProvider(locate: { URL(filePath: "/usr/bin/true") })],
+            customServers: [], makeCustom: { $0.makeProvider(credentials: credentials) })
+        let pane = ProvidersPaneModel(settings: settings, profiles: profiles, registry: holder, credentials: credentials,
+                                      cache: ModelListCache(dataDirectory: folder), readiness: .empty)
+        await pane.refresh()
+        let listed = pane.browse("").first { $0.row.id == ClaudeCodeProvider.providerID }?.models.map(\.id.rawValue)
+        #expect(listed?.contains("sonnet") == true)
+    }
 }
