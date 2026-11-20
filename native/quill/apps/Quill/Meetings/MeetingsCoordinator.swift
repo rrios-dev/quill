@@ -653,19 +653,47 @@ final class MeetingsCoordinator {
 
     /// Stops the live passes and hands over their models, loaded, for the final pass.
     @discardableResult
-    private func stopLiveDiarization() async -> (separator: SpeakerSeparator?, embedder: SpeakerEmbedder?) {
+    private func stopLiveDiarization(audioSeconds: Double) async -> (separator: SpeakerSeparator?, embedder: SpeakerEmbedder?) {
         diarizationLoop?.cancel()
         diarizationLoop = nil
         sentenceQueue?.finish()
         sentenceQueue = nil
         sentenceWorker?.cancel()
         sentenceWorker = nil
-        await diarizationPass?.value
         defer {
             liveSeparator = nil
             liveEmbedder = nil
         }
+        // A pass still running holds the models; one stuck is left behind with them, and
+        // the end of the meeting loads its own.
+        if let pass = diarizationPass {
+            let limit = Self.separationLimit(forSeconds: audioSeconds)
+            guard await Deadline.run(within: limit, { await pass.value; return true }) != nil else {
+                log.error("end of meeting: the live voice pass was still running after \(limit); going on without it")
+                return (nil, nil)
+            }
+        }
         return (liveSeparator, liveEmbedder)
+    }
+
+    /// How long the end of a meeting waits for its voices to be told apart: two minutes
+    /// for loading the models, plus a tenth of the audio. Measured: transcription and
+    /// separation of 10 min take 11 s (EFFICIENCY.md), so this is over five times that.
+    static func separationLimit(forSeconds seconds: Double) -> Duration {
+        .seconds(120) + .milliseconds(Int(seconds * 100))
+    }
+
+    /// How long it waits for each sentence's voiceprint: a minute for the model, plus a
+    /// quarter of a second per sentence (measured: about 60 ms each).
+    static func voiceprintLimit(sentences: Int) -> Duration {
+        .seconds(60) + .milliseconds(sentences * 250)
+    }
+
+    /// A step at the end of a meeting that passed its limit: the meeting is saved without it.
+    struct StepTimedOut: Error, CustomStringConvertible {
+        let step: String
+        let limit: Duration
+        var description: String { "\(step) still running after \(limit)" }
     }
 
     // MARK: Translation
@@ -765,13 +793,14 @@ final class MeetingsCoordinator {
         checkpointLoop?.cancel()
         checkpointLoop = nil
         phase = .separating
+        log.notice("end of meeting: closing the captures")
         let captured = session.secondsCaptured
         var transcript = await session.stop()
         stopMicrophoneGate()
-        log.info("capture: \(session.diagnostics.joined(separator: " | "))")
+        log.notice("capture: \(session.diagnostics.joined(separator: " | "))")
         lostChannels = []
         let samples = session.takeOthersAudio()
-        let live = await stopLiveDiarization()
+        let live = await stopLiveDiarization(audioSeconds: captured[.others] ?? 0)
         let heard = sentencePrints
         sentencePrints = SentencePrints()
         self.session = nil
@@ -781,34 +810,47 @@ final class MeetingsCoordinator {
             let clock = ContinuousClock()
             let began = clock.now
             do {
+                let seconds = Double(samples.count) / AudioAccumulator.sampleRate
+                log.notice("end of meeting: telling apart the voices of \(Int(seconds)) s of audio")
                 // A meeting stopped before the live models loaded loads them now.
-                let separator: SpeakerSeparator
-                if let loaded = live.separator {
-                    separator = loaded
-                } else {
-                    separator = SpeakerSeparator(modelsDirectory: directory.appendingPathComponent("models", isDirectory: true))
-                    try await separator.prepare()
-                }
+                let loaded = live.separator
+                let modelsDirectory = directory.appendingPathComponent("models", isDirectory: true)
+                let limit = Self.separationLimit(forSeconds: seconds)
+                guard let found = try await Deadline.run(within: limit, { () async throws -> [SpeakerTurn] in
+                    let separator: SpeakerSeparator
+                    if let loaded {
+                        separator = loaded
+                    } else {
+                        separator = SpeakerSeparator(modelsDirectory: modelsDirectory)
+                        try await separator.prepare()
+                    }
+                    return try await separator.turns(for: samples)
+                }) else { throw StepTimedOut(step: "separation", limit: limit) }
                 // Voices that barely speak are interruptions heard as a new person (TESTING-MEETINGS.md).
                 // Labelled to continue the live passes, so names given during the meeting stay.
-                let turns = labeler.label(SpeakerTurn.absorbingMinorVoices(try await separator.turns(for: samples)))
+                let turns = labeler.label(SpeakerTurn.absorbingMinorVoices(found))
                 transcript = transcript.assigningSpeakers(turns, renumbering: false)
                 // Each sentence's voiceprint, while the audio is still here: what lets the
-                // user split a voice that holds two people (VOICES.md S1).
+                // user split a voice that holds two people (VOICES.md S1). Off the main
+                // thread: the sentences not measured during the meeting take about 60 ms each.
                 let separated = clock.now
-                var embedder = live.embedder
-                if embedder == nil {
-                    let fresh = SpeakerEmbedder(
-                        modelsDirectory: directory.appendingPathComponent("models/streaming", isDirectory: true))
-                    if (try? await fresh.prepare()) != nil { embedder = fresh }
+                log.notice("end of meeting: voices told apart in \(separated - began); measuring voiceprints")
+                let liveEmbedder = live.embedder
+                let streamingDirectory = directory.appendingPathComponent("models/streaming", isDirectory: true)
+                let unmeasured = transcript
+                let printLimit = Self.voiceprintLimit(sentences: unmeasured.segments.count)
+                let printed = await Deadline.run(within: printLimit) { () async -> Transcript? in
+                    var embedder = liveEmbedder
+                    if embedder == nil {
+                        let fresh = SpeakerEmbedder(modelsDirectory: streamingDirectory)
+                        if (try? await fresh.prepare()) != nil { embedder = fresh }
+                    }
+                    return embedder?.measuringSegments(of: unmeasured, samples: samples, known: heard)
                 }
-                if let embedder {
-                    // Off the main thread: the sentences not measured during the meeting
-                    // take about 60 ms each.
-                    let unmeasured = transcript
-                    transcript = await Task.detached(priority: .userInitiated) {
-                        embedder.measuringSegments(of: unmeasured, samples: samples, known: heard)
-                    }.value
+                switch printed {
+                case .some(.some(let measured)): transcript = measured
+                case .some(.none): break
+                case .none: log.error("end of meeting: voiceprints still running after \(printLimit); saved without them")
                 }
                 let measured = transcript.segments.filter { $0.voiceprint != nil }
                 let reused = measured.filter { heard.print(from: $0.start, to: $0.end) != nil }.count
@@ -880,7 +922,7 @@ final class MeetingsCoordinator {
         store.clearInProgress()
         inProgressID = UUID()
         hideLivePanel()
-        await stopLiveDiarization()
+        await stopLiveDiarization(audioSeconds: session.secondsCaptured[.others] ?? 0)
         liveVoices = []
         _ = await session.stop()
         stopMicrophoneGate()

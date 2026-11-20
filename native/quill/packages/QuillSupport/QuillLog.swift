@@ -27,6 +27,12 @@ public struct QuillLog: Sendable {
         logger.info("\(message, privacy: .public)")
     }
 
+    /// Kept in the system log after the fact, unlike `info`: for the steps a hang is
+    /// diagnosed from (`log show --predicate 'subsystem == "dev.rrios.quill"'`).
+    public func notice(_ message: String) {
+        logger.notice("\(message, privacy: .public)")
+    }
+
     public func error(_ message: String) {
         logger.error("\(message, privacy: .public)")
     }

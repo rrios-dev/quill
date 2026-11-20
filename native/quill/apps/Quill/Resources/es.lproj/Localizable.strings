@@ -395,7 +395,7 @@
 "about.privacy.local" = "Tus perfiles, ejemplos, muestras y ajustes se quedan en este Mac.";
 "about.privacy.network" = "Tu texto solo sale de este Mac cuando reescribes o pruebas un perfil con un modelo alojado, y solo a su proveedor. Además, una vez al día pregunta a GitHub si hay una versión nueva, sin enviar nada tuyo.";
 "about.privacy.keys" = "Las claves de API se guardan en tu llavero.";
-"about.privacy.nothing" = "Sin analíticas, sin telemetría, sin historial de tus reescrituras.";
+"about.privacy.nothing" = "No guarda historial de tus reescrituras. Las estadísticas de uso son anónimas y solo se envían si las activas en General.";
 "about.licences" = "Licencias";
 "about.licences.body" = "Construido sobre código compartido con Ámbar (licencia MIT). Apple Intelligence y Foundation Models son de Apple.";
 
@@ -505,6 +505,7 @@
 "live.subtitle" = "solo texto, sin audio guardado";
 "live.draft %@" = "Diciendo ahora: %@";
 "live.waiting" = "Esperando a que alguien hable…";
+"live.jumpToLatest" = "Ir a lo último";
 "live.note" = "Las voces se separan cada dos minutos y al terminar: los nombres y roles que pongas se guardan con la reunión.";
 "live.discard" = "Descartar";
 "live.hide" = "Ocultar";

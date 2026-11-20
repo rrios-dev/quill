@@ -1046,6 +1046,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showAbout() {
         NSApplication.shared.activate()
-        NSApplication.shared.orderFrontStandardAboutPanel(nil)
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [.credits: AuthorContact.credits()])
     }
 }

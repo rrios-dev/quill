@@ -367,7 +367,8 @@ A flagged result is never applied without the user's explicit confirmation.
   without it, a paste leaves the rewrite on the clipboard. When Quill must fall back to ⌘C to read a selection, the
   **host app** writes the copy, and clipboard managers or Universal Clipboard
   may record it — Settings explains this and can disable the fallback.
-- No analytics, no telemetry, no crash reporter that uploads anything; release
+- Usage statistics are opt-in (J-11): off by default, asked once, anonymous daily
+  counts, never text. No crash reporter that uploads anything; release
   builds log no user text (development builds log it to the system log only
   as private data). Password fields are never read.
 

@@ -50,6 +50,9 @@ public final class MicrophoneCapture: @unchecked Sendable {
     /// else nil (the default).
     private var boundDevice: AudioDeviceID?
     private var devicesListener: AudioObjectPropertyListenerBlock?
+    /// A recovery from a configuration change is waiting to run (`configurationChanged`).
+    private var recoveryScheduled = false
+    private var lastStart: ContinuousClock.Instant?
 
     public init(echoCancellation: Bool = true) {
         self.echoCancellation = echoCancellation
@@ -154,8 +157,36 @@ public final class MicrophoneCapture: @unchecked Sendable {
         observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
         ) { [weak self] _ in
-            // `recover` hops onto the capture queue itself.
-            self?.recover(freshEngine: false)
+            self?.configurationChanged()
+        }
+    }
+
+    /// The least time between the engine starting and a recovery from a configuration
+    /// change.
+    static let settle: Duration = .seconds(1)
+
+    /// A configuration change is answered once, after the engine has had `settle` to
+    /// start, and only if it stopped the engine.
+    ///
+    /// Voice processing posts a change of its own every time it starts. Answered at
+    /// once, each restart posted the next: on 2026-11-17 Quill restarted the microphone
+    /// about three times a second for a whole Teams call — voice processing rebuilt on
+    /// the headset every time, the call cut in and out, and "me" never delivered long
+    /// enough to count as alive. Apple's contract is that a change which matters stops
+    /// the engine; one that leaves it running needs nothing, and a running engine that
+    /// delivers nothing is the watchdog's to catch.
+    private func configurationChanged() {
+        queue.async { [self] in
+            guard started, !stopped, !recoveryScheduled else { return }
+            recoveryScheduled = true
+            let elapsed = lastStart.map { $0.duration(to: .now) } ?? Self.settle
+            let wait = max(.zero, Self.settle - elapsed)
+            let seconds = Double(wait.components.seconds) + Double(wait.components.attoseconds) / 1e18
+            queue.asyncAfter(deadline: .now() + seconds) { [self] in
+                recoveryScheduled = false
+                guard started, !stopped, !engine.isRunning else { return }
+                recover(freshEngine: false)
+            }
         }
     }
 
@@ -239,6 +270,7 @@ public final class MicrophoneCapture: @unchecked Sendable {
         }
         engine.prepare()
         try engine.start()
+        lastStart = .now
     }
 
     public func stop() {

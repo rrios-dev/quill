@@ -235,6 +235,7 @@ struct AboutPane: View {
                         .accessibilityHidden(true)
                     Text(QuillSupport.productName).font(.title2.weight(.semibold))
                     Text(version).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    AuthorContactLinks()
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)

@@ -318,6 +318,12 @@ public final class ListenSession: @unchecked Sendable {
         }
     }
 
+    /// How long `stop()` waits for the captures to close and the last sentences to come.
+    /// Whatever is still missing then is left behind and the meeting is saved without it
+    /// (`Deadline`). The last sentences take a second or two (EFFICIENCY.md).
+    static let closeLimit: Duration = .seconds(60)
+    static let releaseLimit: Duration = .seconds(10)
+
     /// Stops the captures, waits for the last segments and returns the transcript.
     public func stop() async -> Transcript {
         watchdog?.cancel()
@@ -325,16 +331,36 @@ public final class ListenSession: @unchecked Sendable {
         appMicrophoneLoop?.cancel()
         appMicrophoneLoop = nil
         let (tap, microphone, feed) = lock.withLock { (self.tap, self.microphone, self.gatedFeed) }
-        tap?.stop()
-        microphone?.stop()
-        feed?.flush()
-        for transcriber in transcribers { await transcriber.finish() }
+        let transcribers = self.transcribers
+        let clock = ContinuousClock()
+        let began = clock.now
+        let closed = await Deadline.run(within: Self.closeLimit) {
+            tap?.stop()
+            microphone?.stop()
+            feed?.flush()
+            for transcriber in transcribers { await transcriber.finish() }
+            return true
+        }
+        note(closed == nil
+             ? "close: captures or last sentences still pending after \(Self.closeLimit), left behind"
+             : "close: \(began.duration(to: clock.now))")
         lock.withLock {
             self.tap = nil
             self.microphone = nil
         }
-        if let reservedLocale { _ = await AssetInventory.release(reservedLocale: reservedLocale) }
+        if let reservedLocale {
+            let released = await Deadline.run(within: Self.releaseLimit) {
+                await AssetInventory.release(reservedLocale: reservedLocale)
+            }
+            if released == nil { note("release: \(reservedLocale.identifier) still pending after \(Self.releaseLimit)") }
+        }
         return snapshot()
+    }
+
+    private var stopNotes: [String] = []
+
+    private func note(_ line: String) {
+        lock.withLock { stopNotes.append(line) }
     }
 
     /// The others' audio so far, for a diarization pass during the meeting.
@@ -359,6 +385,7 @@ public final class ListenSession: @unchecked Sendable {
         return transcribers.map { "\($0.channel.rawValue): \($0.diagnostics)" }
             + [microphone.map { "mic: \($0.diagnostics) device=\($0.currentDevice.map(String.init) ?? "default")" } ?? "mic: none",
                "mic muted: \(String(format: "%.1f", gated)) s", "tap rebuilds: \(tapRebuilds)"]
+            + lock.withLock { stopNotes }
     }
 
     /// Seconds of audio received per channel: a channel stuck at zero is a capture that

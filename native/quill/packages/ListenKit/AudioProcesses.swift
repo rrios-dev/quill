@@ -38,11 +38,11 @@ public enum AudioProcesses {
             selector: kAudioHardwarePropertyProcessObjectList
         )
         return ids.compactMap { id in
-            guard let pid: pid_t = try? CoreAudioProperty.value(of: id, selector: kAudioProcessPropertyPID)
+            guard let pid = try? CoreAudioProperty.value(pid_t.self, of: id, selector: kAudioProcessPropertyPID)
             else { return nil }
             let bundleID = try? CoreAudioProperty.string(of: id, selector: kAudioProcessPropertyBundleID)
-            let output: UInt32 = (try? CoreAudioProperty.value(of: id, selector: kAudioProcessPropertyIsRunningOutput)) ?? 0
-            let input: UInt32 = (try? CoreAudioProperty.value(of: id, selector: kAudioProcessPropertyIsRunningInput)) ?? 0
+            let output = (try? CoreAudioProperty.value(UInt32.self, of: id, selector: kAudioProcessPropertyIsRunningOutput)) ?? 0
+            let input = (try? CoreAudioProperty.value(UInt32.self, of: id, selector: kAudioProcessPropertyIsRunningInput)) ?? 0
             return AudioProcess(
                 objectID: id,
                 pid: pid,
@@ -104,7 +104,12 @@ enum CoreAudioProperty {
         )
     }
 
-    static func value<T>(of object: AudioObjectID, selector: AudioObjectPropertySelector) throws -> T {
+    /// The type is named, never inferred. Inferred under `try?`, `let x: UInt32 = try? value(…)`
+    /// asks Core Audio for an `UInt32?` — five bytes — and the read fails or returns the
+    /// optional's tag uninitialised. That is how `OutputRoute.current()` answered
+    /// "speakers" for every device, Bluetooth headphones included, and voice processing
+    /// ducked the owner's Teams call by 15 dB (2026-11-17).
+    static func value<T>(_ type: T.Type, of object: AudioObjectID, selector: AudioObjectPropertySelector) throws -> T {
         var address = address(selector)
         var size = UInt32(MemoryLayout<T>.size)
         let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)

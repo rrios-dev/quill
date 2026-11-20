@@ -56,8 +56,8 @@ public final class ProcessTap: @unchecked Sendable {
         try CoreAudioError.check(AudioHardwareCreateProcessTap(description, &tap), "create process tap")
         tapID = tap
 
-        var streamDescription: AudioStreamBasicDescription = try CoreAudioProperty.value(
-            of: tap,
+        var streamDescription = try CoreAudioProperty.value(
+            AudioStreamBasicDescription.self, of: tap,
             selector: kAudioTapPropertyFormat
         )
         guard let format = AVAudioFormat(streamDescription: &streamDescription) else {
@@ -128,8 +128,8 @@ public final class ProcessTap: @unchecked Sendable {
     }
 
     static func defaultOutputDeviceUID() throws -> String {
-        let device: AudioDeviceID = try CoreAudioProperty.value(
-            of: AudioObjectID(kAudioObjectSystemObject),
+        let device = try CoreAudioProperty.value(
+            AudioDeviceID.self, of: AudioObjectID(kAudioObjectSystemObject),
             selector: kAudioHardwarePropertyDefaultOutputDevice
         )
         return try CoreAudioProperty.string(of: device, selector: kAudioDevicePropertyDeviceUID)

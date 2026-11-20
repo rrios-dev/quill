@@ -19,11 +19,11 @@ public enum OutputRoute: Equatable, Sendable {
     /// The route of the default output device now. Unknown counts as `speakers`: an echo in
     /// the transcript is worse than the ducking it costs.
     public static func current() -> OutputRoute {
-        guard let device: AudioDeviceID = try? CoreAudioProperty.value(
-            of: AudioObjectID(kAudioObjectSystemObject),
+        guard let device = try? CoreAudioProperty.value(
+            AudioDeviceID.self, of: AudioObjectID(kAudioObjectSystemObject),
             selector: kAudioHardwarePropertyDefaultOutputDevice
-        ), let transport: UInt32 = try? CoreAudioProperty.value(
-            of: device, selector: kAudioDevicePropertyTransportType
+        ), let transport = try? CoreAudioProperty.value(
+            UInt32.self, of: device, selector: kAudioDevicePropertyTransportType
         ) else { return .speakers }
         return route(transport: transport, dataSource: dataSource(of: device))
     }

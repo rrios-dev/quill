@@ -145,6 +145,15 @@ struct LiveView: View {
     let app: MeetingApp
     let collapse: () -> Void
     @State private var download: TranslationSession.Configuration?
+    /// Whether the transcript keeps the newest line in view. It stops the moment the
+    /// user scrolls away from the end to read back, and resumes when they scroll to
+    /// the end again or press the button that jumps there.
+    @State private var followsLive = true
+    /// Whether the scroll in progress is the user's (a trackpad or wheel), not ours.
+    @State private var userScrolling = false
+
+    /// How close to the end, in points, still counts as being at the end.
+    static let bottomTolerance: CGFloat = 24
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -297,14 +306,50 @@ struct LiveView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: .infinity)
+            // Only the user's own scrolling decides whether we follow: new lines grow
+            // the content too, and would otherwise read as "left the end".
+            .onScrollPhaseChange { _, phase in
+                userScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.visibleRect.maxY >= geometry.contentSize.height - Self.bottomTolerance
+            } action: { _, atEnd in
+                if userScrolling { followsLive = atEnd }
+            }
             .onChange(of: coordinator.liveLines.last?.id) { _, id in
-                guard let id else { return }
+                guard followsLive, let id else { return }
                 withAnimation(.ambarQuick) { proxy.scrollTo(id, anchor: .bottom) }
             }
             .onChange(of: coordinator.liveDrafts[.others]?.text ?? coordinator.liveDrafts[.me]?.text) { _, text in
-                guard text != nil else { return }
+                guard followsLive, text != nil else { return }
                 proxy.scrollTo(coordinator.liveDrafts[.others] != nil ? -1 : -2, anchor: .bottom)
             }
+            .overlay(alignment: .bottomTrailing) {
+                if !followsLive && !coordinator.liveLines.isEmpty {
+                    Button {
+                        followsLive = true
+                        withAnimation(.ambarQuick) { scrollToEnd(proxy) }
+                    } label: {
+                        Label(MeetingCopy.t("live.jumpToLatest"), systemImage: "arrow.down")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.glass)
+                    .padding(Metrics.Inset.panel)
+                    .transition(.opacity)
+                }
+            }
+            .animation(.ambarQuick, value: followsLive)
+        }
+    }
+
+    /// The draft being said now if there is one, else the last finished line.
+    private func scrollToEnd(_ proxy: ScrollViewProxy) {
+        if coordinator.liveDrafts[.others] != nil {
+            proxy.scrollTo(-1, anchor: .bottom)
+        } else if coordinator.liveDrafts[.me] != nil {
+            proxy.scrollTo(-2, anchor: .bottom)
+        } else if let id = coordinator.liveLines.last?.id {
+            proxy.scrollTo(id, anchor: .bottom)
         }
     }
 

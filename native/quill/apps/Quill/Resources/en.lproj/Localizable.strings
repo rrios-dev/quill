@@ -395,7 +395,7 @@
 "about.privacy.local" = "Your profiles, examples, samples and settings stay on this Mac.";
 "about.privacy.network" = "Your text leaves this Mac only when you rewrite or try a profile with a hosted model, and only to its provider. Once a day it also asks GitHub whether a new version exists, sending nothing of yours.";
 "about.privacy.keys" = "API keys are kept in your Keychain.";
-"about.privacy.nothing" = "No analytics, no telemetry, no history of your rewrites.";
+"about.privacy.nothing" = "It keeps no history of your rewrites. Usage statistics are anonymous and sent only if you turn them on in General.";
 "about.licences" = "Licences";
 "about.licences.body" = "Built on code shared with Ámbar (MIT licence). Apple Intelligence and Foundation Models are Apple's.";
 
@@ -505,6 +505,7 @@
 "live.subtitle" = "text only, no audio kept";
 "live.draft %@" = "Being said: %@";
 "live.waiting" = "Waiting for someone to speak…";
+"live.jumpToLatest" = "Jump to latest";
 "live.note" = "Voices are told apart every two minutes and at the end: the names and roles you give are kept with the meeting.";
 "live.discard" = "Discard";
 "live.hide" = "Hide";
